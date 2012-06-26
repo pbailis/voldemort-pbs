@@ -49,8 +49,8 @@ public class EventThrottler {
     public synchronized void maybeThrottle(int eventsSeen) {
         long rateLimit = getRate();
 
-        if(logger.isDebugEnabled())
-            logger.debug("Rate = " + rateLimit);
+        if(logger.isTraceEnabled())
+            logger.trace("Rate = " + rateLimit);
 
         eventsSeenInLastInterval += eventsSeen;
         long now = time.getNanoseconds();
