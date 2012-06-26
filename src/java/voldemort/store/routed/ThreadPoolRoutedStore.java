@@ -444,6 +444,10 @@ public class ThreadPoolRoutedStore extends RoutedStore {
                             Function<List<GetResult<R>>, Void> preReturnProcedure)
             throws VoldemortException {
         StoreUtils.assertValidKey(key);
+
+        long startMs = System.currentTimeMillis();
+        long startNs = System.nanoTime();
+
         final List<Node> nodes = availableNodes(routingStrategy.routeRequest(key.get()));
 
         // quickly fail if there aren't enough nodes to meet the requirement
@@ -507,18 +511,32 @@ public class ThreadPoolRoutedStore extends RoutedStore {
         // reads to make up for these.
         while(successes < this.storeDef.getPreferredReads() && nodeIndex < nodes.size()) {
             Node node = nodes.get(nodeIndex);
-            long startNs = System.nanoTime();
             try {
+                logger.debug("GET for key; insufficient preferred for key " + key + " preferred: "
+                             + this.storeDef.getPreferredReads() + " got: " + successes
+                             + " attempting to GET from node " + nodeIndex);
+
                 retrieved.add(new GetResult<R>(node,
                                                key,
                                                fetcher.execute(innerStores.get(node.getId()),
                                                                key,
                                                                transforms), null));
                 ++successes;
+
+                logger.debug("GET for key; insufficient preferred for key " + key + " preferred: "
+                             + this.storeDef.getPreferredReads() + " got: " + successes
+                             + " GET from node " + nodeIndex + " succeeded");
+
                 recordSuccess(node, startNs);
             } catch(UnreachableStoreException e) {
                 failures.add(e);
                 recordException(node, startNs, e);
+
+                logger.debug("GET for key; insufficient preferred for key " + key + " preferred: "
+                             + this.storeDef.getPreferredReads() + " got: " + successes
+                             + " GET from node " + nodeIndex + " failed; unreachable "
+                             + e.getMessage());
+
             } catch(VoldemortApplicationException e) {
                 throw e;
             } catch(Exception e) {
@@ -534,8 +552,10 @@ public class ThreadPoolRoutedStore extends RoutedStore {
         if(preReturnProcedure != null)
             preReturnProcedure.apply(retrieved);
 
-        // PDB TODO VALUE SIZE, VALUE, KEY
-        logger.warn("GET: preferred: " + storeDef.getPreferredReads() + " achieved: " + successes);
+        logger.debug("Finished GET for key " + key + "; started at " + startMs + " took "
+                     + (System.nanoTime() - startNs) + " values: " + formatNodeValues(retrieved)
+                     + " preferred: " + this.storeDef.getPreferredReads() + " required: "
+                     + this.storeDef.getRequiredReads() + " got: " + retrieved.size());
 
         if(successes >= this.storeDef.getRequiredReads()) {
             List<R> result = Lists.newArrayListWithExpectedSize(retrieved.size());
