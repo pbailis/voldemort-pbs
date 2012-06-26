@@ -74,6 +74,9 @@ public class SocketServerSession implements Runnable {
             while(!isInterrupted() && !socket.isClosed() && !isClosed) {
                 StreamRequestHandler srh = handler.handleRequest(inputStream, outputStream);
 
+                logger.debug("Handled request from " + socket.getRemoteSocketAddress() + " time: "
+                             + System.currentTimeMillis());
+
                 if(srh != null) {
                     if(logger.isTraceEnabled())
                         logger.trace("Request is streaming");
@@ -86,6 +89,10 @@ public class SocketServerSession implements Runnable {
                                 logger.trace("About to enter streaming request handler");
 
                             srhs = srh.handleRequest(inputStream, outputStream);
+
+                            logger.debug("Handled streaming request from "
+                                         + socket.getRemoteSocketAddress() + " time: "
+                                         + System.currentTimeMillis());
 
                             if(logger.isTraceEnabled())
                                 logger.trace("Finished invocation of streaming request handler, result is "

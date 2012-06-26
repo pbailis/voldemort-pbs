@@ -1,0 +1,15 @@
+MODIFICATIONS;
+
+require: Logging at DEBUG and WARN levels
+
+VoldemortNativeRequestHandler: end-to-end for GET, GETALL, PUT, DELETE
+	where appropriate: key, values, time, clock
+
+ThreadPoolRoutedStore: measures routing of read and write requests plus read repair
+
+SocketStore: measure sync and async time for request routing
+	this should measure back-end/local processing overheads
+
+ServerSocketSession: used in WARS analysis
+
+BdbStorageEngine: logs DB-level query logs; used for WARS/consistency analysis

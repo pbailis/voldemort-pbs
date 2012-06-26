@@ -275,21 +275,33 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
                                    Serializer<T> serializer) throws DatabaseException {
         StoreUtils.assertValidKey(key);
 
+        long startNs = System.nanoTime();
+
         DatabaseEntry keyEntry = new DatabaseEntry(key.get());
         DatabaseEntry valueEntry = new DatabaseEntry();
         List<T> results = Lists.newArrayList();
 
+        String valueStr = "";
+
         for(OperationStatus status = cursor.getSearchKey(keyEntry, valueEntry, lockMode); status == OperationStatus.SUCCESS; status = cursor.getNextDup(keyEntry,
                                                                                                                                                         valueEntry,
                                                                                                                                                         lockMode)) {
+            if(logger.isDebugEnabled())
+                valueStr += valueEntry.getData() + ",";
             results.add(serializer.toObject(valueEntry.getData()));
         }
+
+        logger.debug("Completed GET from key " + key + " values [" + valueStr + "] in "
+                     + (System.nanoTime() - startNs) + " ns at " + System.currentTimeMillis());
+
         return results;
     }
 
     public void put(ByteArray key, Versioned<byte[]> value, byte[] transforms)
             throws PersistenceFailureException {
         StoreUtils.assertValidKey(key);
+
+        long startNs = System.nanoTime();
 
         DatabaseEntry keyEntry = new DatabaseEntry(key.get());
         boolean succeeded = false;
@@ -338,6 +350,9 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
             else
                 attemptAbort(transaction);
         }
+
+        logger.debug("Completed PUT to key " + key + " value " + value + " in "
+                     + (System.nanoTime() - startNs) + " ns at " + System.currentTimeMillis());
     }
 
     public boolean delete(ByteArray key, Version version) throws PersistenceFailureException {

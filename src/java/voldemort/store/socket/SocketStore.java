@@ -25,6 +25,7 @@ import java.util.Map;
 
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
+import org.mortbay.log.Log;
 
 import voldemort.VoldemortException;
 import voldemort.client.protocol.RequestFormat;
@@ -240,6 +241,10 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
 
     private <T> T request(ClientRequest<T> delegate, String operationName) {
         ClientRequestExecutor clientRequestExecutor = pool.checkout(destination);
+
+        long startTimeNs = System.nanoTime();
+        long startTimeMs = System.currentTimeMillis();
+
         BlockingClientRequest<T> blockingClientRequest = null;
         try {
             blockingClientRequest = new BlockingClientRequest<T>(delegate, timeoutMs);
@@ -258,6 +263,15 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
                 // close the executor if we timed out
                 clientRequestExecutor.close();
             }
+
+            Log.debug("Sync request end, type: " + operationName + " totalTimeNs: "
+                      + (startTimeNs - System.nanoTime()) + " start time: " + startTimeMs
+                      + "end time: " + System.currentTimeMillis() + "client:"
+                      + clientRequestExecutor.getSocketChannel().socket().getLocalAddress() + ":"
+                      + clientRequestExecutor.getSocketChannel().socket().getLocalPort()
+                      + " server: "
+                      + clientRequestExecutor.getSocketChannel().socket().getRemoteSocketAddress());
+
             pool.checkin(destination, clientRequestExecutor);
         }
     }
@@ -285,6 +299,11 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
 
         try {
             clientRequestExecutor = pool.checkout(destination);
+
+            Log.warn("Async request start, type: " + operationName + " time: " + System.nanoTime()
+                     + " server: "
+                     + clientRequestExecutor.getSocketChannel().socket().getRemoteSocketAddress());
+
         } catch(Exception e) {
             // If we can't check out a socket from the pool, we'll usually get
             // either an IOException (subclass) or an UnreachableStoreException
@@ -335,6 +354,13 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
         private void invokeCallback(Object o, long requestTime) {
             if(callback != null) {
                 try {
+                    Log.warn("Async request end, time: "
+                             + System.nanoTime()
+                             + " server: "
+                             + clientRequestExecutor.getSocketChannel()
+                                                    .socket()
+                                                    .getRemoteSocketAddress());
+
                     callback.requestComplete(o, requestTime);
                 } catch(Exception e) {
                     if(logger.isEnabledFor(Level.WARN))
