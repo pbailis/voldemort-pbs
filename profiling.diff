@@ -1,24 +1,3 @@
-diff --git a/diff-description.txt b/diff-description.txt
-new file mode 100644
-index 0000000..57d7193
---- /dev/null
-+++ b/diff-description.txt
-@@ -0,0 +1,15 @@
-+MODIFICATIONS;
-+
-+require: Logging at DEBUG and WARN levels
-+
-+VoldemortNativeRequestHandler: end-to-end for GET, GETALL, PUT, DELETE
-+	where appropriate: key, values, time, clock
-+
-+ThreadPoolRoutedStore: measures routing of read and write requests plus read repair
-+
-+SocketStore: measure sync and async time for request routing
-+	this should measure back-end/local processing overheads
-+
-+ServerSocketSession: used in WARS analysis
-+
-+BdbStorageEngine: logs DB-level query logs; used for WARS/consistency analysis
 diff --git a/src/java/voldemort/server/protocol/vold/VoldemortNativeRequestHandler.java b/src/java/voldemort/server/protocol/vold/VoldemortNativeRequestHandler.java
 index b74b60a..4f12d06 100644
 --- a/src/java/voldemort/server/protocol/vold/VoldemortNativeRequestHandler.java
