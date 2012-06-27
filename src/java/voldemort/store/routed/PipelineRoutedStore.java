@@ -252,6 +252,20 @@ public class PipelineRoutedStore extends RoutedStore {
         return results;
     }
 
+    private <R> String formatNodeValuesFromGet(List<Response<ByteArray, List<Versioned<byte[]>>>> results) {
+        // log all retrieved values
+        StringBuilder builder = new StringBuilder();
+        builder.append("{");
+        for(Response<ByteArray, List<Versioned<byte[]>>> r: results) {
+            builder.append("(nodeId=" + r.getNode().getId() + ", key=" + r.getKey()
+                           + ", retrieved= " + r.getValue() + ")");
+            builder.append(", ");
+        }
+        builder.append("}");
+
+        return builder.toString();
+    }
+
     public Map<ByteArray, List<Versioned<byte[]>>> getAll(Iterable<ByteArray> keys,
                                                           Map<ByteArray, byte[]> transforms)
             throws VoldemortException {
@@ -349,22 +363,11 @@ public class PipelineRoutedStore extends RoutedStore {
         return builder.toString();
     }
 
-    private <R> String formatNodeValuesFromGet(List<Response<ByteArray, List<Versioned<byte[]>>>> results) {
-        // log all retrieved values
-        StringBuilder builder = new StringBuilder();
-        builder.append("{");
-        for(Response<ByteArray, List<Versioned<byte[]>>> r: results) {
-            builder.append("(nodeId=" + r.getNode().getId() + ", key=" + r.getKey()
-                           + ", retrieved= " + r.getValue() + ")");
-            builder.append(", ");
-        }
-        builder.append("}");
-
-        return builder.toString();
-    }
-
     public List<Version> getVersions(final ByteArray key) {
         StoreUtils.assertValidKey(key);
+
+        long startMs = System.currentTimeMillis();
+        long startNs = System.nanoTime();
 
         BasicPipelineData<List<Version>> pipelineData = new BasicPipelineData<List<Version>>();
         if(zoneRoutingEnabled)
@@ -445,11 +448,32 @@ public class PipelineRoutedStore extends RoutedStore {
         for(Response<ByteArray, List<Version>> response: pipelineData.getResponses())
             results.addAll(response.getValue());
 
+        logger.debug("Finished GETVERSIONS for key " + key + "; started at " + startMs + " took "
+                     + (System.nanoTime() - startNs) + " values: "
+                     + formatNodeValuesFromGetVersions(pipelineData.getResponses()));
+
         return results;
+    }
+
+    private <R> String formatNodeValuesFromGetVersions(List<Response<ByteArray, List<Version>>> results) {
+        // log all retrieved values
+        StringBuilder builder = new StringBuilder();
+        builder.append("{");
+        for(Response<ByteArray, List<Version>> r: results) {
+            builder.append("(nodeId=" + r.getNode().getId() + ", key=" + r.getKey()
+                           + ", retrieved= " + r.getValue() + ")");
+            builder.append(", ");
+        }
+        builder.append("}");
+
+        return builder.toString();
     }
 
     public boolean delete(final ByteArray key, final Version version) throws VoldemortException {
         StoreUtils.assertValidKey(key);
+
+        long startMs = System.currentTimeMillis();
+        long startNs = System.nanoTime();
 
         BasicPipelineData<Boolean> pipelineData = new BasicPipelineData<Boolean>();
         if(zoneRoutingEnabled)
@@ -521,6 +545,9 @@ public class PipelineRoutedStore extends RoutedStore {
             stats.reportException(e);
             throw e;
         }
+
+        logger.debug("Finished DELETE for key " + key.get() + "; started at " + startMs + " took "
+                     + (System.nanoTime() - startNs));
 
         if(pipelineData.getFatalError() != null)
             throw pipelineData.getFatalError();

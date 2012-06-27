@@ -101,6 +101,9 @@ public class VoldemortNativeRequestHandler extends AbstractRequestHandler implem
     private void handleGetVersion(DataInputStream inputStream,
                                   DataOutputStream outputStream,
                                   Store<ByteArray, byte[], byte[]> store) throws IOException {
+        long startTimeNs = System.nanoTime();
+        long startTimeMs = System.currentTimeMillis();
+
         ByteArray key = readKey(inputStream);
         List<Version> results = null;
         try {
@@ -112,11 +115,22 @@ public class VoldemortNativeRequestHandler extends AbstractRequestHandler implem
             return;
         }
         outputStream.writeInt(results.size());
+
+        String clockStr = "";
+
         for(Version v: results) {
             byte[] clock = ((VectorClock) v).toBytes();
+
+            if(logger.isDebugEnabled())
+                clockStr += clock + " ";
+
             outputStream.writeInt(clock.length);
             outputStream.write(clock);
         }
+
+        logger.debug("GETVERSIONS started at: " + startTimeMs + " key: " + key + " "
+                     + (System.nanoTime() - startTimeNs) + " ns, keySize: " + key.length()
+                     + "clocks: " + clockStr);
     }
 
     /**
@@ -269,6 +283,7 @@ public class VoldemortNativeRequestHandler extends AbstractRequestHandler implem
     private void handleGet(DataInputStream inputStream,
                            DataOutputStream outputStream,
                            Store<ByteArray, byte[], byte[]> store) throws IOException {
+        long startTimeMs = System.currentTimeMillis();
         long startTimeNs = System.nanoTime();
 
         ByteArray key = readKey(inputStream);
@@ -289,15 +304,16 @@ public class VoldemortNativeRequestHandler extends AbstractRequestHandler implem
         }
         writeResults(outputStream, results);
 
-        debugLogReturnValue(key, results, startTimeNs, "GET");
+        debugLogReturnValue(key, results, startTimeMs, startTimeNs, "GET");
     }
 
     private void handleGetAll(DataInputStream inputStream,
                               DataOutputStream outputStream,
                               Store<ByteArray, byte[], byte[]> store) throws IOException {
-        // read keys
+        long startTimeMs = System.currentTimeMillis();
         long startTimeNs = System.nanoTime();
 
+        // read keys
         int numKeys = inputStream.readInt();
         List<ByteArray> keys = new ArrayList<ByteArray>(numKeys);
         for(int i = 0; i < numKeys; i++)
@@ -337,7 +353,11 @@ public class VoldemortNativeRequestHandler extends AbstractRequestHandler implem
             // write the values
             writeResults(outputStream, entry.getValue());
 
-            debugLogReturnValue(entry.getKey(), entry.getValue(), startTimeNs, "GETALL");
+            debugLogReturnValue(entry.getKey(),
+                                entry.getValue(),
+                                startTimeMs,
+                                startTimeNs,
+                                "GETALL");
         }
 
         logger.debug("GETALL end");
@@ -345,32 +365,37 @@ public class VoldemortNativeRequestHandler extends AbstractRequestHandler implem
 
     private void debugLogReturnValue(ByteArray key,
                                      List<Versioned<byte[]>> values,
+                                     long startTimeMs,
                                      long startTimeNs,
                                      String getType) {
         if(logger.isDebugEnabled()) {
             long totalValueSize = 0;
             String valueSizeStr = "[";
             String valueHashStr = "[";
+            String versionsStr = "[";
             for(Versioned<byte[]> b: values) {
                 int len = b.getValue().length;
                 totalValueSize += len;
                 valueSizeStr += len + ",";
                 valueHashStr += b.hashCode() + ",";
+                versionsStr += b.getVersion();
             }
             valueSizeStr += "]";
             valueHashStr += "]";
+            versionsStr += "]";
 
-            logger.debug(getType + " key: " + key + " " + (System.nanoTime() - startTimeNs)
-                         + " ns, keySize: " + key.length() + " numResults: " + values.size()
-                         + " totalResultSize: " + totalValueSize + " resultSizes: " + valueSizeStr
-                         + " resultHashes: " + valueHashStr + " time: "
-                         + System.currentTimeMillis());
+            logger.debug(getType + "start time: " + startTimeMs + " key: " + key + " "
+                         + (System.nanoTime() - startTimeNs) + " ns, keySize: " + key.length()
+                         + " numResults: " + values.size() + " totalResultSize: " + totalValueSize
+                         + " resultSizes: " + valueSizeStr + " resultHashes: " + valueHashStr
+                         + " versions: " + versionsStr + " time: " + System.currentTimeMillis());
         }
     }
 
     private void handlePut(DataInputStream inputStream,
                            DataOutputStream outputStream,
                            Store<ByteArray, byte[], byte[]> store) throws IOException {
+        long startTimeMs = System.currentTimeMillis();
         long startTimeNs = System.nanoTime();
 
         ByteArray key = readKey(inputStream);
@@ -393,8 +418,9 @@ public class VoldemortNativeRequestHandler extends AbstractRequestHandler implem
             writeException(outputStream, e);
         }
 
-        logger.debug("PUT key: " + key + " " + (System.nanoTime() - startTimeNs) + " ns, keySize: "
-                     + key.length() + "valueHash: " + value.hashCode() + " valueSize: " + valueSize
+        logger.debug("PUT started at: " + startTimeMs + " key: " + key + " "
+                     + (System.nanoTime() - startTimeNs) + " ns, keySize: " + key.length()
+                     + "valueHash: " + value.hashCode() + " valueSize: " + valueSize
                      + " clockSize: " + clock.sizeInBytes() + " time: "
                      + System.currentTimeMillis());
     }

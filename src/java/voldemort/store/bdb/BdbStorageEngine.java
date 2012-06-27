@@ -250,12 +250,22 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
     public Map<ByteArray, List<Versioned<byte[]>>> getAll(Iterable<ByteArray> keys,
                                                           Map<ByteArray, byte[]> transforms)
             throws VoldemortException {
+
+        long startNs = System.nanoTime();
+
         StoreUtils.assertValidKeys(keys);
         Map<ByteArray, List<Versioned<byte[]>>> result = StoreUtils.newEmptyHashMap(keys);
         Cursor cursor = null;
+
+        String keyStr = "";
+
         try {
             cursor = getBdbDatabase().openCursor(null, null);
             for(ByteArray key: keys) {
+
+                if(logger.isDebugEnabled())
+                    keyStr += key + " ";
+
                 List<Versioned<byte[]>> values = get(cursor, key, readLockMode, versionedSerializer);
                 if(!values.isEmpty())
                     result.put(key, values);
@@ -266,6 +276,10 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
         } finally {
             attemptClose(cursor);
         }
+
+        logger.debug("Completed GETALL from keys " + keyStr + " in "
+                     + (System.nanoTime() - startNs) + " ns at " + System.currentTimeMillis());
+
         return result;
     }
 
@@ -281,18 +295,14 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
         DatabaseEntry valueEntry = new DatabaseEntry();
         List<T> results = Lists.newArrayList();
 
-        String valueStr = "";
-
         for(OperationStatus status = cursor.getSearchKey(keyEntry, valueEntry, lockMode); status == OperationStatus.SUCCESS; status = cursor.getNextDup(keyEntry,
                                                                                                                                                         valueEntry,
                                                                                                                                                         lockMode)) {
-            if(logger.isDebugEnabled())
-                valueStr += valueEntry.getData() + ",";
             results.add(serializer.toObject(valueEntry.getData()));
         }
 
-        logger.debug("Completed GET from key " + key + " values [" + valueStr + "] in "
-                     + (System.nanoTime() - startNs) + " ns at " + System.currentTimeMillis());
+        logger.debug("Completed GET from key " + key + " in " + (System.nanoTime() - startNs)
+                     + " ns at " + System.currentTimeMillis());
 
         return results;
     }
@@ -357,6 +367,9 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
 
     public boolean delete(ByteArray key, Version version) throws PersistenceFailureException {
         StoreUtils.assertValidKey(key);
+
+        long startNs = System.nanoTime();
+
         boolean deletedSomething = false;
         Cursor cursor = null;
         Transaction transaction = null;
@@ -381,6 +394,9 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
             logger.error(e);
             throw new PersistenceFailureException(e);
         } finally {
+            logger.debug("Completed DELETE of key " + key + " in " + (System.nanoTime() - startNs)
+                         + " ns at " + System.currentTimeMillis());
+
             try {
                 attemptClose(cursor);
             } finally {
