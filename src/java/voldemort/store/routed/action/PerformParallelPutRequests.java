@@ -129,6 +129,9 @@ public class PerformParallelPutRequests extends
                                                                                            requestTime);
                     responses.put(node.getId(), response);
 
+                    logger.debug("Finished secondary PUT for key " + key + "; took " + requestTime
+                                 + " ms on node " + node.getId() + "(" + node.getHost() + ")");
+
                     if(isHintedHandoffEnabled() && pipeline.isFinished()) {
                         if(response.getValue() instanceof UnreachableStoreException) {
                             Slop slop = new Slop(pipelineData.getStoreName(),

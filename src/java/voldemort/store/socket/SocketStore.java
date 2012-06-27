@@ -245,17 +245,31 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
         long startTimeNs = System.nanoTime();
         long startTimeMs = System.currentTimeMillis();
 
+        String debugMsgStr = "";
+
         BlockingClientRequest<T> blockingClientRequest = null;
         try {
             blockingClientRequest = new BlockingClientRequest<T>(delegate, timeoutMs);
             clientRequestExecutor.addClientRequest(blockingClientRequest, timeoutMs);
             blockingClientRequest.await();
+
+            if(logger.isDebugEnabled())
+                debugMsgStr += "success";
+
             return blockingClientRequest.getResult();
         } catch(InterruptedException e) {
+
+            if(logger.isDebugEnabled())
+                debugMsgStr += "unreachable: " + e.getMessage();
+
             throw new UnreachableStoreException("Failure in " + operationName + " on "
                                                 + destination + ": " + e.getMessage(), e);
         } catch(IOException e) {
             clientRequestExecutor.close();
+
+            if(logger.isDebugEnabled())
+                debugMsgStr += "failure: " + e.getMessage();
+
             throw new UnreachableStoreException("Failure in " + operationName + " on "
                                                 + destination + ": " + e.getMessage(), e);
         } finally {
@@ -270,7 +284,8 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
                       + clientRequestExecutor.getSocketChannel().socket().getLocalAddress() + ":"
                       + clientRequestExecutor.getSocketChannel().socket().getLocalPort()
                       + " server: "
-                      + clientRequestExecutor.getSocketChannel().socket().getRemoteSocketAddress());
+                      + clientRequestExecutor.getSocketChannel().socket().getRemoteSocketAddress()
+                      + " outcome: " + debugMsgStr);
 
             pool.checkin(destination, clientRequestExecutor);
         }
@@ -300,9 +315,12 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
         try {
             clientRequestExecutor = pool.checkout(destination);
 
-            Log.warn("Async request start, type: " + operationName + " time: " + System.nanoTime()
-                     + " server: "
-                     + clientRequestExecutor.getSocketChannel().socket().getRemoteSocketAddress());
+            Log.debug("Async request start; type: " + operationName + " time: "
+                      + System.currentTimeMillis() + " server: "
+                      + clientRequestExecutor.getSocketChannel().socket().getRemoteSocketAddress()
+                      + " local socket: "
+                      + clientRequestExecutor.getSocketChannel().socket().getLocalAddress() + ":"
+                      + clientRequestExecutor.getSocketChannel().socket().getLocalPort());
 
         } catch(Exception e) {
             // If we can't check out a socket from the pool, we'll usually get
@@ -354,12 +372,16 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
         private void invokeCallback(Object o, long requestTime) {
             if(callback != null) {
                 try {
-                    Log.warn("Async request end, time: "
-                             + System.nanoTime()
+                    Log.warn("Async request end; time: "
+                             + System.currentTimeMillis()
                              + " server: "
                              + clientRequestExecutor.getSocketChannel()
                                                     .socket()
-                                                    .getRemoteSocketAddress());
+                                                    .getRemoteSocketAddress() + " local socket: "
+                             + clientRequestExecutor.getSocketChannel().socket().getLocalAddress()
+                             + ":"
+                             + clientRequestExecutor.getSocketChannel().socket().getLocalPort()
+                             + " result: " + o.toString());
 
                     callback.requestComplete(o, requestTime);
                 } catch(Exception e) {

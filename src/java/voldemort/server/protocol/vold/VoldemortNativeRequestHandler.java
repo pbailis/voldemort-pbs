@@ -363,7 +363,8 @@ public class VoldemortNativeRequestHandler extends AbstractRequestHandler implem
             logger.debug(getType + " key: " + key + " " + (System.nanoTime() - startTimeNs)
                          + " ns, keySize: " + key.length() + " numResults: " + values.size()
                          + " totalResultSize: " + totalValueSize + " resultSizes: " + valueSizeStr
-                         + "resultHashes: " + valueHashStr + "time: " + System.currentTimeMillis());
+                         + " resultHashes: " + valueHashStr + " time: "
+                         + System.currentTimeMillis());
         }
     }
 

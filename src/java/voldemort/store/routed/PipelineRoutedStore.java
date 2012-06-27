@@ -144,6 +144,9 @@ public class PipelineRoutedStore extends RoutedStore {
     public List<Versioned<byte[]>> get(final ByteArray key, final byte[] transforms) {
         StoreUtils.assertValidKey(key);
 
+        long startMs = System.currentTimeMillis();
+        long startNs = System.nanoTime();
+
         BasicPipelineData<List<Versioned<byte[]>>> pipelineData = new BasicPipelineData<List<Versioned<byte[]>>>();
         if(zoneRoutingEnabled)
             pipelineData.setZonesRequired(storeDef.getZoneCountReads());
@@ -242,6 +245,10 @@ public class PipelineRoutedStore extends RoutedStore {
                 results.addAll(value);
         }
 
+        logger.debug("Finished GET for key " + key + "; started at " + startMs + " took "
+                     + (System.nanoTime() - startNs) + " values: "
+                     + formatNodeValuesFromGet(pipelineData.getResponses()));
+
         return results;
     }
 
@@ -249,6 +256,9 @@ public class PipelineRoutedStore extends RoutedStore {
                                                           Map<ByteArray, byte[]> transforms)
             throws VoldemortException {
         StoreUtils.assertValidKeys(keys);
+
+        long startNs = System.nanoTime();
+        long startMs = System.currentTimeMillis();
 
         boolean allowReadRepair = repairReads && (transforms == null || transforms.size() == 0);
 
@@ -318,7 +328,39 @@ public class PipelineRoutedStore extends RoutedStore {
         if(pipelineData.getFatalError() != null)
             throw pipelineData.getFatalError();
 
+        logger.debug("Finished GETALL for keys " + keys + "; started at " + startMs + " took "
+                     + (System.nanoTime() - startNs) + " values: "
+                     + formatNodeValuesFromGetAll(pipelineData.getResponses()));
+
         return pipelineData.getResult();
+    }
+
+    private <R> String formatNodeValuesFromGetAll(List<Response<Iterable<ByteArray>, Map<ByteArray, List<Versioned<byte[]>>>>> list) {
+        // log all retrieved values
+        StringBuilder builder = new StringBuilder();
+        builder.append("{");
+        for(Response<Iterable<ByteArray>, Map<ByteArray, List<Versioned<byte[]>>>> r: list) {
+            builder.append("(nodeId=" + r.getNode().getId() + ", key=" + r.getKey()
+                           + ", retrieved= " + r.getValue() + ")");
+            builder.append(", ");
+        }
+        builder.append("}");
+
+        return builder.toString();
+    }
+
+    private <R> String formatNodeValuesFromGet(List<Response<ByteArray, List<Versioned<byte[]>>>> results) {
+        // log all retrieved values
+        StringBuilder builder = new StringBuilder();
+        builder.append("{");
+        for(Response<ByteArray, List<Versioned<byte[]>>> r: results) {
+            builder.append("(nodeId=" + r.getNode().getId() + ", key=" + r.getKey()
+                           + ", retrieved= " + r.getValue() + ")");
+            builder.append(", ");
+        }
+        builder.append("}");
+
+        return builder.toString();
     }
 
     public List<Version> getVersions(final ByteArray key) {

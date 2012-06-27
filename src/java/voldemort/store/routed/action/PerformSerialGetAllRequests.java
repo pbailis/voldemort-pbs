@@ -79,6 +79,9 @@ public class PerformSerialGetAllRequests
             boolean zoneRequirement = false;
             MutableInt successCount = pipelineData.getSuccessCount(key);
 
+            logger.debug("GETALL for key " + key + " successes: " + successCount.intValue()
+                         + " preferred: " + preferred + " required: " + required);
+
             if(successCount.intValue() >= preferred) {
                 if(pipelineData.getZonesRequired() != null) {
 
@@ -131,6 +134,10 @@ public class PerformSerialGetAllRequests
                     successCount.increment();
                     pipelineData.getResponses().add(response);
                     failureDetector.recordSuccess(response.getNode(), response.getRequestTime());
+
+                    logger.debug("GET for key " + key + " successes: " + successCount.intValue()
+                                 + " preferred: " + preferred + " required: " + required
+                                 + " new GET success on node " + node.getId());
 
                     HashSet<Integer> zoneResponses = null;
                     if(pipelineData.getKeyToZoneResponse().containsKey(key)) {
@@ -187,5 +194,4 @@ public class PerformSerialGetAllRequests
 
         pipeline.addEvent(completeEvent);
     }
-
 }
