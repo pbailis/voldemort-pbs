@@ -444,10 +444,6 @@ public class ThreadPoolRoutedStore extends RoutedStore {
                             Function<List<GetResult<R>>, Void> preReturnProcedure)
             throws VoldemortException {
         StoreUtils.assertValidKey(key);
-
-        long startMs = System.currentTimeMillis();
-        long startNs = System.nanoTime();
-
         final List<Node> nodes = availableNodes(routingStrategy.routeRequest(key.get()));
 
         // quickly fail if there aren't enough nodes to meet the requirement
@@ -511,32 +507,18 @@ public class ThreadPoolRoutedStore extends RoutedStore {
         // reads to make up for these.
         while(successes < this.storeDef.getPreferredReads() && nodeIndex < nodes.size()) {
             Node node = nodes.get(nodeIndex);
+            long startNs = System.nanoTime();
             try {
-                logger.debug("GET for key; insufficient preferred for key " + key + " preferred: "
-                             + this.storeDef.getPreferredReads() + " got: " + successes
-                             + " attempting to GET from node " + nodeIndex);
-
                 retrieved.add(new GetResult<R>(node,
                                                key,
                                                fetcher.execute(innerStores.get(node.getId()),
                                                                key,
                                                                transforms), null));
                 ++successes;
-
-                logger.debug("GET for key; insufficient preferred for key " + key + " preferred: "
-                             + this.storeDef.getPreferredReads() + " got: " + successes
-                             + " GET from node " + nodeIndex + " succeeded");
-
                 recordSuccess(node, startNs);
             } catch(UnreachableStoreException e) {
                 failures.add(e);
                 recordException(node, startNs, e);
-
-                logger.debug("GET for key; insufficient preferred for key " + key + " preferred: "
-                             + this.storeDef.getPreferredReads() + " got: " + successes
-                             + " GET from node " + nodeIndex + " failed; unreachable "
-                             + e.getMessage());
-
             } catch(VoldemortApplicationException e) {
                 throw e;
             } catch(Exception e) {
@@ -551,11 +533,6 @@ public class ThreadPoolRoutedStore extends RoutedStore {
 
         if(preReturnProcedure != null)
             preReturnProcedure.apply(retrieved);
-
-        logger.debug("Finished GET for key " + key + "; started at " + startMs + " took "
-                     + (System.nanoTime() - startNs) + " values: " + formatNodeValues(retrieved)
-                     + " preferred: " + this.storeDef.getPreferredReads() + " required: "
-                     + this.storeDef.getRequiredReads() + " got: " + retrieved.size());
 
         if(successes >= this.storeDef.getRequiredReads()) {
             List<R> result = Lists.newArrayListWithExpectedSize(retrieved.size());
@@ -605,18 +582,14 @@ public class ThreadPoolRoutedStore extends RoutedStore {
         this.executor.execute(new Runnable() {
 
             public void run() {
-                long startNs = System.nanoTime();
                 for(NodeValue<ByteArray, byte[]> v: toReadRepair) {
                     try {
-                        long startNsLocal = System.nanoTime();
-
+                        if(logger.isDebugEnabled())
+                            logger.debug("Doing read repair on node " + v.getNodeId()
+                                         + " for key '" + v.getKey() + "' with version "
+                                         + v.getVersion() + ".");
                         // no transforms since this is read repair
                         innerStores.get(v.getNodeId()).put(v.getKey(), v.getVersioned(), null);
-
-                        logger.debug("Read repair on node " + v.getNodeId() + " for key '"
-                                     + v.getKey() + "' with version " + v.getVersion() + " took "
-                                     + (System.nanoTime() - startNsLocal) + " ns");
-
                     } catch(VoldemortApplicationException e) {
                         if(logger.isDebugEnabled())
                             logger.debug("Read repair cancelled due to application level exception on node "
@@ -630,16 +603,6 @@ public class ThreadPoolRoutedStore extends RoutedStore {
                     } catch(Exception e) {
                         logger.debug("Read repair failed: ", e);
                     }
-                }
-
-                if(logger.isDebugEnabled()) {
-                    String logStr = "Repaired (node, key, version): (";
-                    for(NodeValue<ByteArray, byte[]> v: toReadRepair) {
-                        logStr += "(" + v.getNodeId() + ", " + v.getKey() + "," + v.getVersion()
-                                  + ") ";
-                    }
-                    logStr += "in " + (System.nanoTime() - startNs) + " ns";
-                    logger.debug(logStr);
                 }
             }
         });
@@ -670,7 +633,6 @@ public class ThreadPoolRoutedStore extends RoutedStore {
 
     public void put(final ByteArray key, final Versioned<byte[]> versioned, final byte[] transforms)
             throws VoldemortException {
-        long startMs = System.currentTimeMillis();
         long startNs = System.nanoTime();
         StoreUtils.assertValidKey(key);
         final List<Node> nodes = availableNodes(routingStrategy.routeRequest(key.get()));
@@ -698,7 +660,6 @@ public class ThreadPoolRoutedStore extends RoutedStore {
         for(; currentNode < numNodes; currentNode++) {
             Node current = nodes.get(currentNode);
             long startNsLocal = System.nanoTime();
-            long startMasterMs = System.currentTimeMillis();
             try {
                 versionedCopy = incremented(versioned, current.getId());
                 innerStores.get(current.getId()).put(key, versionedCopy, transforms);
@@ -708,22 +669,12 @@ public class ThreadPoolRoutedStore extends RoutedStore {
                 break;
             } catch(UnreachableStoreException e) {
                 recordException(current, startNsLocal, e);
-                logger.debug("Master PUT at node " + current.getId() + "(" + current.getHost()
-                             + ")" + " failed (unreachable) in "
-                             + (System.nanoTime() - startNsLocal) + " ns");
                 failures.add(e);
             } catch(VoldemortApplicationException e) {
                 throw e;
             } catch(Exception e) {
-                logger.debug("Master PUT at node " + current.getId() + "(" + current.getHost()
-                             + ")" + " failed (" + e.getMessage() + ") in "
-                             + (System.nanoTime() - startNsLocal) + " ns");
                 failures.add(e);
             }
-
-            logger.debug("Finished master PUT for key " + key + "; started at " + startMasterMs
-                         + " took " + (System.nanoTime() - startNsLocal) + " ns on node "
-                         + current.getId() + "(" + current.getHost() + ")");
         }
 
         if(successes.get() < 1)
@@ -748,7 +699,6 @@ public class ThreadPoolRoutedStore extends RoutedStore {
 
                 public void run() {
                     long startNsLocal = System.nanoTime();
-                    long startMs = System.currentTimeMillis();
                     try {
                         innerStores.get(node.getId()).put(key, finalVersionedCopy, transforms);
                         successes.incrementAndGet();
@@ -768,10 +718,6 @@ public class ThreadPoolRoutedStore extends RoutedStore {
                                     + ")", e);
                         failures.add(e);
                     } finally {
-                        logger.debug("Finished secondary PUT for key " + key + "; started at "
-                                     + startMs + " took " + (System.nanoTime() - startNsLocal)
-                                     + " ns on node " + node.getId() + "(" + node.getHost() + ")");
-
                         // signal that the operation is complete
                         semaphore.release();
                     }
@@ -810,10 +756,6 @@ public class ThreadPoolRoutedStore extends RoutedStore {
                                                                 + this.storeDef.getRequiredWrites()
                                                                 + " are required.", failures);
         }
-
-        logger.debug("Finished all PUTs for key " + key + "; started at " + startMs + " took "
-                     + (System.nanoTime() - startNs) + " preferred: "
-                     + storeDef.getPreferredWrites() + " achieved: " + successes.get());
 
         // Okay looks like it worked, increment the version for the caller
         VectorClock versionedClock = (VectorClock) versioned.getVersion();
@@ -893,7 +835,6 @@ public class ThreadPoolRoutedStore extends RoutedStore {
         public GetResult<R> call() throws Exception {
             List<R> fetched = Collections.emptyList();
             Throwable exception = null;
-            long startMs = System.currentTimeMillis();
             long startNs = System.nanoTime();
             try {
                 if(logger.isTraceEnabled())
@@ -910,11 +851,6 @@ public class ThreadPoolRoutedStore extends RoutedStore {
                 logger.warn("Error in GET on node " + node.getId() + "(" + node.getHost() + ")", e);
                 exception = e;
             }
-
-            logger.debug("Finished GET for key " + key + "; started at " + startMs + " took "
-                         + (System.nanoTime() - startNs) + " ns on node " + node.getId() + "("
-                         + node.getHost() + ")");
-
             return new GetResult<R>(node, key, fetched, exception);
         }
     }
