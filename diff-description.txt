@@ -1,15 +1,47 @@
 MODIFICATIONS;
 
-require: Logging at DEBUG and WARN levels
+require: Logging at DEBUG and WARN levels, ideally with timestap logging at MS level 
 
-VoldemortNativeRequestHandler: end-to-end for GET, GETALL, PUT, DELETE
-	where appropriate: key, values, time, clock
+CLIENT
 
-ThreadPoolRoutedStore: measures routing of read and write requests plus read repair
+PipelineRoutedStore:
+    end-to-end latencies for GET, GETALL, GETVERSIONS, PUT, DELETE
+    
+    for PUT:
+    	ParallelPutRequests
+	SerialPutRequests
 
-SocketStore: measure sync and async time for request routing
-	this should measure back-end/local processing overheads
+    for GET, GETVERSIONS:
+        PerformParallelRequests
+        PerformSerialRequests
 
-ServerSocketSession: used in WARS analysis
+    for GETALL:
+        PerformParallelGetAllRequests
+	PerformSerialGetAllRequests	 
 
-BdbStorageEngine: logs DB-level query logs; used for WARS/consistency analysis
+SocketStore:
+    client-server WARS analysis
+    opaque re: *what kind* of request
+    logs remote and local ports, start/end time
+
+    TODO: logs per remote request, no correlation with higher-level routing
+
+SERVER
+
+AsyncRequestHandler:
+    lowest level at which we have a socket handle
+    logs completion time of server request with local+client IP, port
+
+VoldemortNativeRequestHandler:
+    detailed logging for GET, GETALL, GETVERSIONS, PUT, DELETE
+    keys, value hashes, time, versions
+
+BdbStorageEngine:
+    storage-specific GET, GETALL, GETVERSIONS, PUT, DELETE logging    
+
+OTHER
+
+AbstractReadRepair
+
+HintedHandoff   
+
