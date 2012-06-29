@@ -109,10 +109,10 @@ public class PerformParallelRequests<V, PD extends BasicPipelineData<V>> extends
                                                                                            key,
                                                                                            result,
                                                                                            requestTime);
-
-                    logger.debug("Finished GET for key " + key + "; started at " + startMs
-                                 + " took " + requestTime + " ms on node " + node.getId() + "("
-                                 + node.getHost() + ")");
+                    if(logger.isDebugEnabled())
+                        logger.debug("Finished GET for key " + key + "; started at " + startMs
+                                     + " took " + requestTime + " ms on node " + node.getId() + "("
+                                     + node.getHost() + ")");
 
                     responses.put(node.getId(), response);
                     latch.countDown();
@@ -171,8 +171,9 @@ public class PerformParallelRequests<V, PD extends BasicPipelineData<V>> extends
             }
         }
 
-        logger.debug("GET for key " + key + " successes: " + pipelineData.getSuccesses()
-                     + " preferred: " + preferred + " required: " + required);
+        if(logger.isDebugEnabled())
+            logger.debug("GET for key " + key + " successes: " + pipelineData.getSuccesses()
+                         + " preferred: " + preferred + " required: " + required);
 
         if(pipelineData.getSuccesses() < required) {
             if(insufficientSuccessesEvent != null) {

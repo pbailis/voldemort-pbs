@@ -112,9 +112,10 @@ public class PerformSerialPutRequests extends
             } catch(Exception e) {
                 long requestTime = (System.nanoTime() - start) / Time.NS_PER_MS;
 
-                logger.debug("Master PUT at node " + currentNode + "(" + node.getHost() + ")"
-                             + " failed (" + e.getMessage() + ") in " + (System.nanoTime() - start)
-                             + " ns");
+                if(logger.isDebugEnabled())
+                    logger.debug("Master PUT at node " + currentNode + "(" + node.getHost() + ")"
+                                 + " failed (" + e.getMessage() + ") in "
+                                 + (System.nanoTime() - start) + " ns");
 
                 if(handleResponseError(e, node, requestTime, pipeline, failureDetector))
                     return;
@@ -169,9 +170,10 @@ public class PerformSerialPutRequests extends
                 }
             }
         } else {
-            logger.debug("Finished master PUT for key " + key + "; started at " + startMasterMs
-                         + " took " + (System.nanoTime() - startMasterNs) + " ns on node "
-                         + node.getId() + "(" + node.getHost() + ")");
+            if(logger.isDebugEnabled())
+                logger.debug("Finished master PUT for key " + key + "; started at " + startMasterMs
+                             + " took " + (System.nanoTime() - startMasterNs) + " ns on node "
+                             + node.getId() + "(" + node.getHost() + ")");
 
             pipeline.addEvent(masterDeterminedEvent);
         }

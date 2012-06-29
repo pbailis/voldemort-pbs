@@ -288,10 +288,13 @@ public class AsyncRequestHandler extends SelectorManagerWorker {
 
             state = streamRequestHandler.handleRequest(dataInputStream, dataOutputStream);
 
-            logger.debug("Handled request from " + socketChannel.socket().getRemoteSocketAddress()
-                         + " handlerRef: " + System.identityHashCode(streamRequestHandler)
-                         + " at time: " + System.currentTimeMillis() + " elapsed time: "
-                         + (System.nanoTime() - startNs) + " ns");
+            if(logger.isDebugEnabled()) {
+                logger.debug("Handled request from "
+                             + socketChannel.socket().getRemoteSocketAddress() + " handlerRef: "
+                             + System.identityHashCode(streamRequestHandler) + " at time: "
+                             + System.currentTimeMillis() + " elapsed time: "
+                             + (System.nanoTime() - startNs) + " ns");
+            }
 
             if(logger.isTraceEnabled())
                 traceInputBufferState("After streaming request handler");

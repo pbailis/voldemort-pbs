@@ -144,8 +144,13 @@ public class PipelineRoutedStore extends RoutedStore {
     public List<Versioned<byte[]>> get(final ByteArray key, final byte[] transforms) {
         StoreUtils.assertValidKey(key);
 
-        long startMs = System.currentTimeMillis();
-        long startNs = System.nanoTime();
+        long startTimeMs = -1;
+        long startTimeNs = -1;
+
+        if(logger.isDebugEnabled()) {
+            startTimeMs = System.currentTimeMillis();
+            startTimeNs = System.nanoTime();
+        }
 
         BasicPipelineData<List<Versioned<byte[]>>> pipelineData = new BasicPipelineData<List<Versioned<byte[]>>>();
         if(zoneRoutingEnabled)
@@ -245,9 +250,12 @@ public class PipelineRoutedStore extends RoutedStore {
                 results.addAll(value);
         }
 
-        logger.debug("Finished GET for key " + key + " keyRef: " + System.identityHashCode(key)
-                     + "; started at " + startMs + " took " + (System.nanoTime() - startNs)
-                     + " values: " + formatNodeValuesFromGet(pipelineData.getResponses()));
+        if(logger.isDebugEnabled()) {
+            logger.debug("Finished GET for key " + key + " keyRef: " + System.identityHashCode(key)
+                         + "; started at " + startTimeMs + " took "
+                         + (System.nanoTime() - startTimeNs) + " values: "
+                         + formatNodeValuesFromGet(pipelineData.getResponses()));
+        }
 
         return results;
     }
@@ -271,8 +279,13 @@ public class PipelineRoutedStore extends RoutedStore {
             throws VoldemortException {
         StoreUtils.assertValidKeys(keys);
 
-        long startNs = System.nanoTime();
-        long startMs = System.currentTimeMillis();
+        long startTimeMs = -1;
+        long startTimeNs = -1;
+
+        if(logger.isDebugEnabled()) {
+            startTimeMs = System.currentTimeMillis();
+            startTimeNs = System.nanoTime();
+        }
 
         boolean allowReadRepair = repairReads && (transforms == null || transforms.size() == 0);
 
@@ -342,10 +355,12 @@ public class PipelineRoutedStore extends RoutedStore {
         if(pipelineData.getFatalError() != null)
             throw pipelineData.getFatalError();
 
-        logger.debug("Finished GETALL for keys " + keys + " keyRef: "
-                     + System.identityHashCode(keys) + "; started at " + startMs + " took "
-                     + (System.nanoTime() - startNs) + " values: "
-                     + formatNodeValuesFromGetAll(pipelineData.getResponses()));
+        if(logger.isDebugEnabled()) {
+            logger.debug("Finished GETALL for keys " + keys + " keyRef: "
+                         + System.identityHashCode(keys) + "; started at " + startTimeMs + " took "
+                         + (System.nanoTime() - startTimeNs) + " values: "
+                         + formatNodeValuesFromGetAll(pipelineData.getResponses()));
+        }
 
         return pipelineData.getResult();
     }
@@ -367,8 +382,13 @@ public class PipelineRoutedStore extends RoutedStore {
     public List<Version> getVersions(final ByteArray key) {
         StoreUtils.assertValidKey(key);
 
-        long startMs = System.currentTimeMillis();
-        long startNs = System.nanoTime();
+        long startTimeMs = -1;
+        long startTimeNs = -1;
+
+        if(logger.isDebugEnabled()) {
+            startTimeMs = System.currentTimeMillis();
+            startTimeNs = System.nanoTime();
+        }
 
         BasicPipelineData<List<Version>> pipelineData = new BasicPipelineData<List<Version>>();
         if(zoneRoutingEnabled)
@@ -449,10 +469,12 @@ public class PipelineRoutedStore extends RoutedStore {
         for(Response<ByteArray, List<Version>> response: pipelineData.getResponses())
             results.addAll(response.getValue());
 
-        logger.debug("Finished GETVERSIONS for key " + key + " keyRef: "
-                     + System.identityHashCode(key) + "; started at " + startMs + " took "
-                     + (System.nanoTime() - startNs) + " values: "
-                     + formatNodeValuesFromGetVersions(pipelineData.getResponses()));
+        if(logger.isDebugEnabled()) {
+            logger.debug("Finished GETVERSIONS for key " + key + " keyRef: "
+                         + System.identityHashCode(key) + "; started at " + startTimeMs + " took "
+                         + (System.nanoTime() - startTimeNs) + " values: "
+                         + formatNodeValuesFromGetVersions(pipelineData.getResponses()));
+        }
 
         return results;
     }
@@ -474,8 +496,13 @@ public class PipelineRoutedStore extends RoutedStore {
     public boolean delete(final ByteArray key, final Version version) throws VoldemortException {
         StoreUtils.assertValidKey(key);
 
-        long startMs = System.currentTimeMillis();
-        long startNs = System.nanoTime();
+        long startTimeMs = -1;
+        long startTimeNs = -1;
+
+        if(logger.isDebugEnabled()) {
+            startTimeMs = System.currentTimeMillis();
+            startTimeNs = System.nanoTime();
+        }
 
         BasicPipelineData<Boolean> pipelineData = new BasicPipelineData<Boolean>();
         if(zoneRoutingEnabled)
@@ -548,9 +575,11 @@ public class PipelineRoutedStore extends RoutedStore {
             throw e;
         }
 
-        logger.debug("Finished DELETE for key " + key.get() + " keyRef: "
-                     + System.identityHashCode(key) + "; started at " + startMs + " took "
-                     + (System.nanoTime() - startNs));
+        if(logger.isDebugEnabled()) {
+            logger.debug("Finished DELETE for key " + key.get() + " keyRef: "
+                         + System.identityHashCode(key) + "; started at " + startTimeMs + " took "
+                         + (System.nanoTime() - startTimeNs));
+        }
 
         if(pipelineData.getFatalError() != null)
             throw pipelineData.getFatalError();
@@ -570,8 +599,13 @@ public class PipelineRoutedStore extends RoutedStore {
     public void put(ByteArray key, Versioned<byte[]> versioned, byte[] transforms)
             throws VoldemortException {
 
-        long startMs = System.currentTimeMillis();
-        long startNs = System.nanoTime();
+        long startTimeMs = -1;
+        long startTimeNs = -1;
+
+        if(logger.isDebugEnabled()) {
+            startTimeMs = System.currentTimeMillis();
+            startTimeNs = System.nanoTime();
+        }
 
         StoreUtils.assertValidKey(key);
         PutPipelineData pipelineData = new PutPipelineData();
@@ -667,9 +701,11 @@ public class PipelineRoutedStore extends RoutedStore {
             throw e;
         }
 
-        logger.debug("Finished GET for key " + key + " keyRef: " + System.identityHashCode(key)
-                     + "; started at " + startMs + " took " + (System.nanoTime() - startNs)
-                     + " value: " + versioned);
+        if(logger.isDebugEnabled()) {
+            logger.debug("Finished GET for key " + key + " keyRef: " + System.identityHashCode(key)
+                         + "; started at " + startTimeMs + " took "
+                         + (System.nanoTime() - startTimeNs) + " value: " + versioned);
+        }
 
         if(pipelineData.getFatalError() != null)
             throw pipelineData.getFatalError();

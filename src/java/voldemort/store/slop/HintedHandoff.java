@@ -112,8 +112,10 @@ public class HintedHandoff {
                 NonblockingStore nonblockingStore = nonblockingSlopStores.get(nodeId);
                 Utils.notNull(nonblockingStore);
                 final long startNs = System.nanoTime();
-                logger.debug("Slop attempt to write " + slop.getKey() + " for " + failedNode
-                             + " to node " + node);
+
+                if(logger.isDebugEnabled())
+                    logger.debug("Slop attempt to write " + slop.getKey() + " for " + failedNode
+                                 + " to node " + node);
 
                 NonblockingStoreCallback callback = new NonblockingStoreCallback() {
 
@@ -147,9 +149,10 @@ public class HintedHandoff {
                             return;
                         }
 
-                        logger.debug("Slop write of key " + slop.getKey() + " for " + failedNode
-                                     + " to node " + node + " succeded in "
-                                     + (System.nanoTime() - startNs) + " ns");
+                        if(logger.isDebugEnabled())
+                            logger.debug("Slop write of key " + slop.getKey() + " for "
+                                         + failedNode + " to node " + node + " succeded in "
+                                         + (System.nanoTime() - startNs) + " ns");
 
                         failureDetector.recordSuccess(node, (System.nanoTime() - startNs)
                                                             / Time.NS_PER_MS);
@@ -206,9 +209,10 @@ public class HintedHandoff {
                     logger.debug(e, e);
                 }
 
-                logger.debug("Slop write of key " + slop.getKey() + " for " + failedNode
-                             + " to node " + node + " succeded in " + (System.nanoTime() - startNs)
-                             + " ns");
+                if(logger.isDebugEnabled())
+                    logger.debug("Slop write of key " + slop.getKey() + " for " + failedNode
+                                 + " to node " + node + " succeded in "
+                                 + (System.nanoTime() - startNs) + " ns");
             }
         }
 

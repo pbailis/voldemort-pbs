@@ -209,7 +209,10 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
                             Serializer<T> serializer) throws PersistenceFailureException {
         StoreUtils.assertValidKey(key);
 
-        long startNs = System.nanoTime();
+        long startTimeNs = -1;
+
+        if(logger.isTraceEnabled())
+            startTimeNs = System.nanoTime();
 
         Cursor cursor = null;
         try {
@@ -227,9 +230,12 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
             logger.error(e);
             throw new PersistenceFailureException(e);
         } finally {
-            logger.trace("Completed GET from key " + key + " (keyRef: "
-                         + System.identityHashCode(key) + ") in " + (System.nanoTime() - startNs)
-                         + " ns at " + System.currentTimeMillis());
+            if(logger.isTraceEnabled()) {
+                logger.trace("Completed GET from key " + key + " (keyRef: "
+                             + System.identityHashCode(key) + ") in "
+                             + (System.nanoTime() - startTimeNs) + " ns at "
+                             + System.currentTimeMillis());
+            }
 
             attemptClose(cursor);
         }
@@ -257,7 +263,7 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
                                                           Map<ByteArray, byte[]> transforms)
             throws VoldemortException {
 
-        long startNs = System.nanoTime();
+        long startTimeNs = System.nanoTime();
 
         StoreUtils.assertValidKeys(keys);
         Map<ByteArray, List<Versioned<byte[]>>> result = StoreUtils.newEmptyHashMap(keys);
@@ -284,7 +290,7 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
         }
 
         logger.trace("Completed GETALL from keys " + keyStr + " in "
-                     + (System.nanoTime() - startNs) + " ns at " + System.currentTimeMillis());
+                     + (System.nanoTime() - startTimeNs) + " ns at " + System.currentTimeMillis());
 
         return result;
     }
@@ -295,7 +301,10 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
                                    Serializer<T> serializer) throws DatabaseException {
         StoreUtils.assertValidKey(key);
 
-        long startNs = System.nanoTime();
+        long startTimeNs = -1;
+
+        if(logger.isTraceEnabled())
+            startTimeNs = System.nanoTime();
 
         DatabaseEntry keyEntry = new DatabaseEntry(key.get());
         DatabaseEntry valueEntry = new DatabaseEntry();
@@ -307,8 +316,11 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
             results.add(serializer.toObject(valueEntry.getData()));
         }
 
-        logger.trace("Completed GET from key " + key + " in " + (System.nanoTime() - startNs)
-                     + " ns at " + System.currentTimeMillis());
+        if(logger.isTraceEnabled()) {
+            logger.trace("Completed GET from key " + key + " in "
+                         + (System.nanoTime() - startTimeNs) + " ns at "
+                         + System.currentTimeMillis());
+        }
 
         return results;
     }
@@ -317,7 +329,10 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
             throws PersistenceFailureException {
         StoreUtils.assertValidKey(key);
 
-        long startNs = System.nanoTime();
+        long startTimeNs = -1;
+
+        if(logger.isTraceEnabled())
+            startTimeNs = System.nanoTime();
 
         DatabaseEntry keyEntry = new DatabaseEntry(key.get());
         boolean succeeded = false;
@@ -367,15 +382,21 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
                 attemptAbort(transaction);
         }
 
-        logger.trace("Completed PUT to key " + key + " (keyRef: " + System.identityHashCode(key)
-                     + " value " + value + " in " + (System.nanoTime() - startNs) + " ns at "
-                     + System.currentTimeMillis());
+        if(logger.isTraceEnabled()) {
+            logger.trace("Completed PUT to key " + key + " (keyRef: "
+                         + System.identityHashCode(key) + " value " + value + " in "
+                         + (System.nanoTime() - startTimeNs) + " ns at "
+                         + System.currentTimeMillis());
+        }
     }
 
     public boolean delete(ByteArray key, Version version) throws PersistenceFailureException {
         StoreUtils.assertValidKey(key);
 
-        long startNs = System.nanoTime();
+        long startTimeNs = -1;
+
+        if(logger.isTraceEnabled())
+            startTimeNs = System.nanoTime();
 
         boolean deletedSomething = false;
         Cursor cursor = null;
@@ -401,9 +422,13 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
             logger.error(e);
             throw new PersistenceFailureException(e);
         } finally {
-            logger.trace("Completed DELETE of key " + key + " (keyRef: "
-                         + System.identityHashCode(key) + " in " + (System.nanoTime() - startNs)
-                         + " ns at " + System.currentTimeMillis());
+
+            if(logger.isTraceEnabled()) {
+                logger.trace("Completed DELETE of key " + key + " (keyRef: "
+                             + System.identityHashCode(key) + " in "
+                             + (System.nanoTime() - startTimeNs) + " ns at "
+                             + System.currentTimeMillis());
+            }
 
             try {
                 attemptClose(cursor);

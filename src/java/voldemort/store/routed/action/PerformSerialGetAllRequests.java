@@ -135,9 +135,11 @@ public class PerformSerialGetAllRequests
                     pipelineData.getResponses().add(response);
                     failureDetector.recordSuccess(response.getNode(), response.getRequestTime());
 
-                    logger.debug("GET for key " + key + " successes: " + successCount.intValue()
-                                 + " preferred: " + preferred + " required: " + required
-                                 + " new GET success on node " + node.getId());
+                    if(logger.isDebugEnabled())
+                        logger.debug("GET for key " + key + " successes: "
+                                     + successCount.intValue() + " preferred: " + preferred
+                                     + " required: " + required + " new GET success on node "
+                                     + node.getId());
 
                     HashSet<Integer> zoneResponses = null;
                     if(pipelineData.getKeyToZoneResponse().containsKey(key)) {
