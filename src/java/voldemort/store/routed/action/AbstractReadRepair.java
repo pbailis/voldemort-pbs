@@ -75,7 +75,10 @@ public abstract class AbstractReadRepair<K, V, PD extends PipelineData<K, V>> ex
     public void execute(Pipeline pipeline) {
         insertNodeValues();
 
-        long startNs = System.nanoTime();
+        long startTimeNs = -1;
+
+        if(logger.isTraceEnabled())
+            startTimeNs = System.nanoTime();
 
         if(nodeValues.size() > 1 && preferred > 1) {
             List<NodeValue<ByteArray, byte[]>> toReadRepair = Lists.newArrayList();
@@ -119,7 +122,7 @@ public abstract class AbstractReadRepair<K, V, PD extends PipelineData<K, V>> ex
                 for(NodeValue<ByteArray, byte[]> v: toReadRepair) {
                     logStr += "(" + v.getNodeId() + ", " + v.getKey() + "," + v.getVersion() + ") ";
                 }
-                logStr += "in " + (System.nanoTime() - startNs) + " ns";
+                logStr += "in " + (System.nanoTime() - startTimeNs) + " ns";
                 logger.debug(logStr);
             }
         }

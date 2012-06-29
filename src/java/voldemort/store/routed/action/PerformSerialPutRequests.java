@@ -74,8 +74,13 @@ public class PerformSerialPutRequests extends
         int currentNode = 0;
         List<Node> nodes = pipelineData.getNodes();
 
-        long startMasterMs = System.currentTimeMillis();
-        long startMasterNs = System.nanoTime();
+        long startMasterMs = -1;
+        long startMasterNs = -1;
+
+        if(logger.isDebugEnabled()) {
+            startMasterMs = System.currentTimeMillis();
+            startMasterNs = System.nanoTime();
+        }
 
         if(logger.isDebugEnabled())
             logger.debug("Performing serial put requests to determine master");

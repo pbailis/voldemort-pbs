@@ -263,7 +263,10 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
                                                           Map<ByteArray, byte[]> transforms)
             throws VoldemortException {
 
-        long startTimeNs = System.nanoTime();
+        long startTimeNs = -1;
+
+        if(logger.isTraceEnabled())
+            startTimeNs = System.nanoTime();
 
         StoreUtils.assertValidKeys(keys);
         Map<ByteArray, List<Versioned<byte[]>>> result = StoreUtils.newEmptyHashMap(keys);
