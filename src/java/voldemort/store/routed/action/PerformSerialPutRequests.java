@@ -115,7 +115,8 @@ public class PerformSerialPutRequests extends
                 if(logger.isDebugEnabled())
                     logger.debug("Master PUT at node " + currentNode + "(" + node.getHost() + ")"
                                  + " failed (" + e.getMessage() + ") in "
-                                 + (System.nanoTime() - start) + " ns");
+                                 + (System.nanoTime() - start) + " ns" + " (keyRef: "
+                                 + System.identityHashCode(key) + ")");
 
                 if(handleResponseError(e, node, requestTime, pipeline, failureDetector))
                     return;
@@ -171,7 +172,8 @@ public class PerformSerialPutRequests extends
             }
         } else {
             if(logger.isDebugEnabled())
-                logger.debug("Finished master PUT for key " + key + "; started at " + startMasterMs
+                logger.debug("Finished master PUT for key " + key + " (keyRef: "
+                             + System.identityHashCode(key) + "); started at " + startMasterMs
                              + " took " + (System.nanoTime() - startMasterNs) + " ns on node "
                              + node.getId() + "(" + node.getHost() + ")");
 

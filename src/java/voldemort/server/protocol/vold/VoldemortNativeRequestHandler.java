@@ -404,12 +404,12 @@ public class VoldemortNativeRequestHandler extends AbstractRequestHandler implem
         valueHashStr += "]";
         versionsStr += "]";
 
-        logger.debug(getType + " handlerRef: " + System.identityHashCode(this) + "start time: "
-                     + startTimeMs + " key: " + key + " " + (System.nanoTime() - startTimeNs)
-                     + " ns, keySize: " + key.length() + " numResults: " + values.size()
-                     + " totalResultSize: " + totalValueSize + " resultSizes: " + valueSizeStr
-                     + " resultHashes: " + valueHashStr + " versions: " + versionsStr + " time: "
-                     + System.currentTimeMillis());
+        logger.debug(getType + " handlerRef: " + System.identityHashCode(this) + " start time: "
+                     + startTimeMs + " key: " + key + " elapsed time: "
+                     + (System.nanoTime() - startTimeNs) + " ns, keySize: " + key.length()
+                     + " numResults: " + values.size() + " totalResultSize: " + totalValueSize
+                     + " resultSizes: " + valueSizeStr + " resultHashes: " + valueHashStr
+                     + " versions: " + versionsStr + " current time: " + System.currentTimeMillis());
     }
 
     private void handlePut(DataInputStream inputStream,

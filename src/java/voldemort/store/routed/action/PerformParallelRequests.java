@@ -110,7 +110,8 @@ public class PerformParallelRequests<V, PD extends BasicPipelineData<V>> extends
                                                                                            result,
                                                                                            requestTime);
                     if(logger.isDebugEnabled())
-                        logger.debug("Finished GET for key " + key + "; started at " + startMs
+                        logger.debug("Finished GET for key " + key + " (keyRef: "
+                                     + System.identityHashCode(key) + "); started at " + startMs
                                      + " took " + requestTime + " ms on node " + node.getId() + "("
                                      + node.getHost() + ")");
 

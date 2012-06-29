@@ -284,7 +284,10 @@ public class AsyncRequestHandler extends SelectorManagerWorker {
 
             // this is the lowest level in the NioSocketServer stack at which we
             // still have a reference to the client IP address and port
-            long startNs = System.nanoTime();
+            long startNs = -1;
+
+            if(logger.isDebugEnabled())
+                startNs = System.nanoTime();
 
             state = streamRequestHandler.handleRequest(dataInputStream, dataOutputStream);
 

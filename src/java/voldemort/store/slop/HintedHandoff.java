@@ -188,8 +188,10 @@ public class HintedHandoff {
                 long startNs = System.nanoTime();
 
                 try {
-                    logger.debug("Slop attempt to write " + slop.getKey() + " for " + failedNode
-                                 + " to node " + node);
+                    if(logger.isDebugEnabled())
+                        logger.debug("Slop attempt to write " + slop.getKey() + " (keyRef: "
+                                     + System.identityHashCode(slop.getKey()) + ") for "
+                                     + failedNode + " to node " + node);
 
                     // No transform needs to applied to the slop
                     slopStore.put(slop.makeKey(), new Versioned<Slop>(slop, version), null);
@@ -210,7 +212,8 @@ public class HintedHandoff {
                 }
 
                 if(logger.isDebugEnabled())
-                    logger.debug("Slop write of key " + slop.getKey() + " for " + failedNode
+                    logger.debug("Slop write of key " + slop.getKey() + " (keyRef: "
+                                 + System.identityHashCode(slop.getKey()) + " for " + failedNode
                                  + " to node " + node + " succeded in "
                                  + (System.nanoTime() - startNs) + " ns");
             }

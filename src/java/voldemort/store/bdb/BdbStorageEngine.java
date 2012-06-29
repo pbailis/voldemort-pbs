@@ -289,8 +289,10 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
             attemptClose(cursor);
         }
 
-        logger.trace("Completed GETALL from keys " + keyStr + " in "
-                     + (System.nanoTime() - startTimeNs) + " ns at " + System.currentTimeMillis());
+        if(logger.isTraceEnabled())
+            logger.trace("Completed GETALL from keys " + keyStr + " in "
+                         + (System.nanoTime() - startTimeNs) + " ns at "
+                         + System.currentTimeMillis());
 
         return result;
     }
@@ -425,7 +427,7 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
 
             if(logger.isTraceEnabled()) {
                 logger.trace("Completed DELETE of key " + key + " (keyRef: "
-                             + System.identityHashCode(key) + " in "
+                             + System.identityHashCode(key) + ") in "
                              + (System.nanoTime() - startTimeNs) + " ns at "
                              + System.currentTimeMillis());
             }
