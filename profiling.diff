@@ -221,7 +221,7 @@ index b74b60a..e905bf3 100644
  
      private void writeException(DataOutputStream stream, VoldemortException e) throws IOException {
 diff --git a/src/java/voldemort/store/bdb/BdbStorageEngine.java b/src/java/voldemort/store/bdb/BdbStorageEngine.java
-index 61d809e..663824c 100644
+index 61d809e..e0c7123 100644
 --- a/src/java/voldemort/store/bdb/BdbStorageEngine.java
 +++ b/src/java/voldemort/store/bdb/BdbStorageEngine.java
 @@ -209,6 +209,11 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
@@ -250,12 +250,15 @@ index 61d809e..663824c 100644
              attemptClose(cursor);
          }
      }
-@@ -250,12 +262,22 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
+@@ -250,12 +262,25 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
      public Map<ByteArray, List<Versioned<byte[]>>> getAll(Iterable<ByteArray> keys,
                                                            Map<ByteArray, byte[]> transforms)
              throws VoldemortException {
 +
-+        long startTimeNs = System.nanoTime();
++        long startTimeNs = -1;
++
++        if(logger.isTraceEnabled())
++            startTimeNs = System.nanoTime();
 +
          StoreUtils.assertValidKeys(keys);
          Map<ByteArray, List<Versioned<byte[]>>> result = StoreUtils.newEmptyHashMap(keys);
@@ -273,7 +276,7 @@ index 61d809e..663824c 100644
                  List<Versioned<byte[]>> values = get(cursor, key, readLockMode, versionedSerializer);
                  if(!values.isEmpty())
                      result.put(key, values);
-@@ -266,6 +288,12 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
+@@ -266,6 +291,12 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
          } finally {
              attemptClose(cursor);
          }
@@ -286,7 +289,7 @@ index 61d809e..663824c 100644
          return result;
      }
  
-@@ -275,6 +303,11 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
+@@ -275,6 +306,11 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
                                     Serializer<T> serializer) throws DatabaseException {
          StoreUtils.assertValidKey(key);
  
@@ -298,7 +301,7 @@ index 61d809e..663824c 100644
          DatabaseEntry keyEntry = new DatabaseEntry(key.get());
          DatabaseEntry valueEntry = new DatabaseEntry();
          List<T> results = Lists.newArrayList();
-@@ -284,6 +317,13 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
+@@ -284,6 +320,13 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
                                                                                                                                                          lockMode)) {
              results.add(serializer.toObject(valueEntry.getData()));
          }
@@ -312,7 +315,7 @@ index 61d809e..663824c 100644
          return results;
      }
  
-@@ -291,6 +331,11 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
+@@ -291,6 +334,11 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
              throws PersistenceFailureException {
          StoreUtils.assertValidKey(key);
  
@@ -324,7 +327,7 @@ index 61d809e..663824c 100644
          DatabaseEntry keyEntry = new DatabaseEntry(key.get());
          boolean succeeded = false;
          Transaction transaction = null;
-@@ -338,10 +383,23 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
+@@ -338,10 +386,23 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
              else
                  attemptAbort(transaction);
          }
@@ -348,7 +351,7 @@ index 61d809e..663824c 100644
          boolean deletedSomething = false;
          Cursor cursor = null;
          Transaction transaction = null;
-@@ -366,6 +424,14 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
+@@ -366,6 +427,14 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
              logger.error(e);
              throw new PersistenceFailureException(e);
          } finally {
@@ -364,7 +367,7 @@ index 61d809e..663824c 100644
                  attemptClose(cursor);
              } finally {
 diff --git a/src/java/voldemort/store/routed/PipelineRoutedStore.java b/src/java/voldemort/store/routed/PipelineRoutedStore.java
-index 38ff905..ef7de16 100644
+index 38ff905..5839835 100644
 --- a/src/java/voldemort/store/routed/PipelineRoutedStore.java
 +++ b/src/java/voldemort/store/routed/PipelineRoutedStore.java
 @@ -144,6 +144,14 @@ public class PipelineRoutedStore extends RoutedStore {
@@ -382,7 +385,7 @@ index 38ff905..ef7de16 100644
          BasicPipelineData<List<Versioned<byte[]>>> pipelineData = new BasicPipelineData<List<Versioned<byte[]>>>();
          if(zoneRoutingEnabled)
              pipelineData.setZonesRequired(storeDef.getZoneCountReads());
-@@ -242,14 +250,43 @@ public class PipelineRoutedStore extends RoutedStore {
+@@ -242,14 +250,42 @@ public class PipelineRoutedStore extends RoutedStore {
                  results.addAll(value);
          }
  
@@ -402,8 +405,7 @@ index 38ff905..ef7de16 100644
 +        builder.append("{");
 +        for(Response<ByteArray, List<Versioned<byte[]>>> r: results) {
 +            builder.append("(nodeId=" + r.getNode().getId() + ", key=" + r.getKey()
-+                           + ", retrieved= " + r.getValue() + ")");
-+            builder.append(", ");
++                           + ", retrieved= " + r.getValue() + "), ");
 +        }
 +        builder.append("}");
 +
@@ -426,7 +428,7 @@ index 38ff905..ef7de16 100644
          boolean allowReadRepair = repairReads && (transforms == null || transforms.size() == 0);
  
          GetAllPipelineData pipelineData = new GetAllPipelineData();
-@@ -318,12 +355,41 @@ public class PipelineRoutedStore extends RoutedStore {
+@@ -318,12 +354,41 @@ public class PipelineRoutedStore extends RoutedStore {
          if(pipelineData.getFatalError() != null)
              throw pipelineData.getFatalError();
  
@@ -468,7 +470,7 @@ index 38ff905..ef7de16 100644
          BasicPipelineData<List<Version>> pipelineData = new BasicPipelineData<List<Version>>();
          if(zoneRoutingEnabled)
              pipelineData.setZonesRequired(storeDef.getZoneCountReads());
-@@ -403,12 +469,41 @@ public class PipelineRoutedStore extends RoutedStore {
+@@ -403,12 +468,40 @@ public class PipelineRoutedStore extends RoutedStore {
          for(Response<ByteArray, List<Version>> response: pipelineData.getResponses())
              results.addAll(response.getValue());
  
@@ -488,8 +490,7 @@ index 38ff905..ef7de16 100644
 +        builder.append("{");
 +        for(Response<ByteArray, List<Version>> r: results) {
 +            builder.append("(nodeId=" + r.getNode().getId() + ", key=" + r.getKey()
-+                           + ", retrieved= " + r.getValue() + ")");
-+            builder.append(", ");
++                           + ", retrieved= " + r.getValue() + "), ");
 +        }
 +        builder.append("}");
 +
@@ -510,7 +511,7 @@ index 38ff905..ef7de16 100644
          BasicPipelineData<Boolean> pipelineData = new BasicPipelineData<Boolean>();
          if(zoneRoutingEnabled)
              pipelineData.setZonesRequired(storeDef.getZoneCountWrites());
-@@ -480,6 +575,12 @@ public class PipelineRoutedStore extends RoutedStore {
+@@ -480,6 +573,12 @@ public class PipelineRoutedStore extends RoutedStore {
              throw e;
          }
  
@@ -523,7 +524,7 @@ index 38ff905..ef7de16 100644
          if(pipelineData.getFatalError() != null)
              throw pipelineData.getFatalError();
  
-@@ -497,6 +598,15 @@ public class PipelineRoutedStore extends RoutedStore {
+@@ -497,6 +596,15 @@ public class PipelineRoutedStore extends RoutedStore {
  
      public void put(ByteArray key, Versioned<byte[]> versioned, byte[] transforms)
              throws VoldemortException {
@@ -539,7 +540,7 @@ index 38ff905..ef7de16 100644
          StoreUtils.assertValidKey(key);
          PutPipelineData pipelineData = new PutPipelineData();
          if(zoneRoutingEnabled)
-@@ -591,6 +701,12 @@ public class PipelineRoutedStore extends RoutedStore {
+@@ -591,6 +699,12 @@ public class PipelineRoutedStore extends RoutedStore {
              throw e;
          }
  
@@ -553,7 +554,7 @@ index 38ff905..ef7de16 100644
              throw pipelineData.getFatalError();
      }
 diff --git a/src/java/voldemort/store/routed/action/AbstractReadRepair.java b/src/java/voldemort/store/routed/action/AbstractReadRepair.java
-index 2588c36..c87f397 100644
+index 2588c36..7454d57 100644
 --- a/src/java/voldemort/store/routed/action/AbstractReadRepair.java
 +++ b/src/java/voldemort/store/routed/action/AbstractReadRepair.java
 @@ -24,9 +24,9 @@ import voldemort.cluster.Node;
@@ -567,16 +568,19 @@ index 2588c36..c87f397 100644
  import voldemort.utils.ByteArray;
  import voldemort.versioning.VectorClock;
  import voldemort.versioning.Versioned;
-@@ -75,6 +75,8 @@ public abstract class AbstractReadRepair<K, V, PD extends PipelineData<K, V>> ex
+@@ -75,6 +75,11 @@ public abstract class AbstractReadRepair<K, V, PD extends PipelineData<K, V>> ex
      public void execute(Pipeline pipeline) {
          insertNodeValues();
  
-+        long startNs = System.nanoTime();
++        long startTimeNs = -1;
++
++        if(logger.isTraceEnabled())
++            startTimeNs = System.nanoTime();
 +
          if(nodeValues.size() > 1 && preferred > 1) {
              List<NodeValue<ByteArray, byte[]>> toReadRepair = Lists.newArrayList();
  
-@@ -111,6 +113,15 @@ public abstract class AbstractReadRepair<K, V, PD extends PipelineData<K, V>> ex
+@@ -111,6 +116,15 @@ public abstract class AbstractReadRepair<K, V, PD extends PipelineData<K, V>> ex
                      logger.debug("Read repair failed: ", e);
                  }
              }
@@ -586,7 +590,7 @@ index 2588c36..c87f397 100644
 +                for(NodeValue<ByteArray, byte[]> v: toReadRepair) {
 +                    logStr += "(" + v.getNodeId() + ", " + v.getKey() + "," + v.getVersion() + ") ";
 +                }
-+                logStr += "in " + (System.nanoTime() - startNs) + " ns";
++                logStr += "in " + (System.nanoTime() - startTimeNs) + " ns";
 +                logger.debug(logStr);
 +            }
          }
@@ -609,7 +613,7 @@ index c459057..a837341 100644
                          if(response.getValue() instanceof UnreachableStoreException) {
                              Slop slop = new Slop(pipelineData.getStoreName(),
 diff --git a/src/java/voldemort/store/routed/action/PerformParallelRequests.java b/src/java/voldemort/store/routed/action/PerformParallelRequests.java
-index a5a0ef9..a0f73b4 100644
+index a5a0ef9..c23fa75 100644
 --- a/src/java/voldemort/store/routed/action/PerformParallelRequests.java
 +++ b/src/java/voldemort/store/routed/action/PerformParallelRequests.java
 @@ -95,6 +95,8 @@ public class PerformParallelRequests<V, PD extends BasicPipelineData<V>> extends
@@ -634,18 +638,19 @@ index a5a0ef9..a0f73b4 100644
                      responses.put(node.getId(), response);
                      latch.countDown();
  
-@@ -164,6 +172,10 @@ public class PerformParallelRequests<V, PD extends BasicPipelineData<V>> extends
+@@ -164,6 +172,11 @@ public class PerformParallelRequests<V, PD extends BasicPipelineData<V>> extends
              }
          }
  
 +        if(logger.isDebugEnabled())
-+            logger.debug("GET for key " + key + " successes: " + pipelineData.getSuccesses()
-+                         + " preferred: " + preferred + " required: " + required);
++            logger.debug("GET for key " + key + " (keyRef: " + System.identityHashCode(key)
++                         + "); successes: " + pipelineData.getSuccesses() + " preferred: "
++                         + preferred + " required: " + required);
 +
          if(pipelineData.getSuccesses() < required) {
              if(insufficientSuccessesEvent != null) {
                  pipeline.addEvent(insufficientSuccessesEvent);
-@@ -184,7 +196,6 @@ public class PerformParallelRequests<V, PD extends BasicPipelineData<V>> extends
+@@ -184,7 +197,6 @@ public class PerformParallelRequests<V, PD extends BasicPipelineData<V>> extends
              }
  
          } else {
@@ -653,7 +658,7 @@ index a5a0ef9..a0f73b4 100644
              if(pipelineData.getZonesRequired() != null) {
  
                  int zonesSatisfied = pipelineData.getZoneResponses().size();
-@@ -216,5 +227,4 @@ public class PerformParallelRequests<V, PD extends BasicPipelineData<V>> extends
+@@ -216,5 +228,4 @@ public class PerformParallelRequests<V, PD extends BasicPipelineData<V>> extends
              }
          }
      }
@@ -696,15 +701,20 @@ index 2f5d07e..e36da11 100644
  }
 \ No newline at end of file
 diff --git a/src/java/voldemort/store/routed/action/PerformSerialPutRequests.java b/src/java/voldemort/store/routed/action/PerformSerialPutRequests.java
-index 5d8debe..8be08e0 100644
+index 5d8debe..e1bffeb 100644
 --- a/src/java/voldemort/store/routed/action/PerformSerialPutRequests.java
 +++ b/src/java/voldemort/store/routed/action/PerformSerialPutRequests.java
-@@ -74,11 +74,15 @@ public class PerformSerialPutRequests extends
+@@ -74,11 +74,20 @@ public class PerformSerialPutRequests extends
          int currentNode = 0;
          List<Node> nodes = pipelineData.getNodes();
  
-+        long startMasterMs = System.currentTimeMillis();
-+        long startMasterNs = System.nanoTime();
++        long startMasterMs = -1;
++        long startMasterNs = -1;
++
++        if(logger.isDebugEnabled()) {
++            startMasterMs = System.currentTimeMillis();
++            startMasterNs = System.nanoTime();
++        }
 +
          if(logger.isDebugEnabled())
              logger.debug("Performing serial put requests to determine master");
@@ -716,7 +726,7 @@ index 5d8debe..8be08e0 100644
              pipelineData.incrementNodeIndex();
  
              VectorClock versionedClock = (VectorClock) versioned.getVersion();
-@@ -108,6 +112,12 @@ public class PerformSerialPutRequests extends
+@@ -108,6 +117,12 @@ public class PerformSerialPutRequests extends
              } catch(Exception e) {
                  long requestTime = (System.nanoTime() - start) / Time.NS_PER_MS;
  
@@ -729,7 +739,7 @@ index 5d8debe..8be08e0 100644
                  if(handleResponseError(e, node, requestTime, pipeline, failureDetector))
                      return;
              }
-@@ -161,6 +171,12 @@ public class PerformSerialPutRequests extends
+@@ -161,6 +176,12 @@ public class PerformSerialPutRequests extends
                  }
              }
          } else {
@@ -917,7 +927,7 @@ index a4a6621..2205fbc 100644
          }
  
 diff --git a/src/java/voldemort/store/socket/SocketStore.java b/src/java/voldemort/store/socket/SocketStore.java
-index 0886341..6fd1a3c 100644
+index 0886341..eb2a67c 100644
 --- a/src/java/voldemort/store/socket/SocketStore.java
 +++ b/src/java/voldemort/store/socket/SocketStore.java
 @@ -25,6 +25,7 @@ import java.util.Map;
@@ -1028,13 +1038,18 @@ index 0886341..6fd1a3c 100644
          request(clientRequest, "put");
      }
  
-@@ -240,17 +271,35 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
+@@ -240,17 +271,40 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
  
      private <T> T request(ClientRequest<T> delegate, String operationName) {
          ClientRequestExecutor clientRequestExecutor = pool.checkout(destination);
 +
-+        long startTimeNs = System.nanoTime();
-+        long startTimeMs = System.currentTimeMillis();
++        long startTimeMs = -1;
++        long startTimeNs = -1;
++
++        if(logger.isDebugEnabled()) {
++            startTimeMs = System.currentTimeMillis();
++            startTimeNs = System.nanoTime();
++        }
 +
 +        String debugMsgStr = "";
 +
@@ -1064,7 +1079,7 @@ index 0886341..6fd1a3c 100644
              throw new UnreachableStoreException("Failure in " + operationName + " on "
                                                  + destination + ": " + e.getMessage(), e);
          } finally {
-@@ -258,6 +307,29 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
+@@ -258,6 +312,29 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
                  // close the executor if we timed out
                  clientRequestExecutor.close();
              }
@@ -1094,7 +1109,7 @@ index 0886341..6fd1a3c 100644
              pool.checkin(destination, clientRequestExecutor);
          }
      }
-@@ -285,6 +357,23 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
+@@ -285,6 +362,23 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
  
          try {
              clientRequestExecutor = pool.checkout(destination);
@@ -1118,7 +1133,7 @@ index 0886341..6fd1a3c 100644
          } catch(Exception e) {
              // If we can't check out a socket from the pool, we'll usually get
              // either an IOException (subclass) or an UnreachableStoreException
-@@ -335,6 +424,26 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
+@@ -335,6 +429,26 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
          private void invokeCallback(Object o, long requestTime) {
              if(callback != null) {
                  try {
