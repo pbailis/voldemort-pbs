@@ -84,3 +84,19 @@ Phew! That's pretty nasty, but I can't think of a better way to do it
 without modifying the API. This is effectively a five-way equijoin
 between the logs--perhaps loading the parsed data into an RDBMS is in
 order.
+
+CAVEAT: While it would be nice, this ad-hoc method-by-method
+parameter-based correlation means that we can't rely on sampling to
+limit tracing overheads (as in Dapper). This is potentially going to
+be a problem: the logging overhead may be onerous. If each method
+output, say, 1 in 1000 DEBUG messages, it would decrease
+overheads. However, we cannot ensure that that all classes choose the
+*same* requests to output. For example, PipelineRoutedStore may output
+a debug message for a given request while SocketStore does
+not. Statistically, there will be intersection, but this is likely
+rare (roughly p^4). There is possibly a one-to-one correlation of
+debug messages between some classes, but more likely we can't
+synchronize the counts between classes (if we had a means of doing so,
+we wouldn't have this problem, and because the join key changes
+between classes, it's not likely that there's an easy common scheme to
+do so).
