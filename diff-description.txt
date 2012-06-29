@@ -41,7 +41,46 @@ BdbStorageEngine:
 
 OTHER
 
-AbstractReadRepair
+AbstractReadRepair:
+    basic logging for measuring how often RR fires and how long it takes
 
-HintedHandoff   
+HintedHandoff:
+    basic logging for measuring how often and how long hintedhandoff happens/takes
 
+----
+HOW DO WE CORRELATE METHOD INVOCATIONS?
+----
+
+There is no notion of a request context in Voldemort, so we can't
+easily correlate log messages produced by different methods. This is
+problematic: on the client, given a log message in a SocketStore, how
+do we know which request it belongs to? (The key is probably
+sufficient, but in the event of concurrent requests to the same key,
+we cannot disambiguate.) Across clients and servers we have a similar
+problem.
+
+We cannot change the method signatures, so instead we correlate at
+method boundaries. In general, the same (ByteArray key) instance is
+used up and down the client stack (from the serializing class to the
+socket) and another (ByteArray key) instance is used similarly in the
+server stack. Using System.identityHashCode() to get a (non-unique but
+close enough to unique) handle to track exactly which request we're
+operating on up and down the stack. Across system boundaries, we have
+some other messiness, which I outline here:
+
+CLIENT:CLIENT	 PipelineRoutedStore -> SocketStore : identityHashCode(key)
+CLIENT:SERVER    SocketStore -> AsyncRequestHandler : clientId:clientPort
+SERVER:SERVER	 AsyncRequestHandler -> VoldemortNativeRequestHandler : identityHashCode(handler)
+SERVER:SERVER	 VoldemortNativeRequestHandler -> BdbStorageEngine : identityHashCode(key)
+
+This means, for example, to find the corresponding debug messages in BdbStorageEngine:
+     1.) Find the hashcode of the request key ByteArray in the PipelineRoutedStore log
+     2.) Find the corresponding client socket in the SocketStore logs
+     3.) Find the request that came in on the client socket in the AsyncRequestHandler logs
+     4.) Find the server-side request key ByteArray in the AsyncRequestHandler logs
+     5.) Find the debug message in BdbStorageEngine for the corresponding request key
+
+Phew! That's pretty nasty, but I can't think of a better way to do it
+without modifying the API. This is effectively a five-way equijoin
+between the logs--perhaps loading the parsed data into an RDBMS is in
+order.

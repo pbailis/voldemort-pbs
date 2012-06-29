@@ -128,7 +128,8 @@ public class VoldemortNativeRequestHandler extends AbstractRequestHandler implem
             outputStream.write(clock);
         }
 
-        logger.debug("GETVERSIONS started at: " + startTimeMs + " key: " + key + " "
+        logger.debug("GETVERSIONS started at: " + startTimeMs + " handlerRef: "
+                     + System.identityHashCode(this) + " key: " + key + " "
                      + (System.nanoTime() - startTimeNs) + " ns, keySize: " + key.length()
                      + "clocks: " + clockStr);
     }
@@ -384,11 +385,12 @@ public class VoldemortNativeRequestHandler extends AbstractRequestHandler implem
             valueHashStr += "]";
             versionsStr += "]";
 
-            logger.debug(getType + "start time: " + startTimeMs + " key: " + key + " "
-                         + (System.nanoTime() - startTimeNs) + " ns, keySize: " + key.length()
-                         + " numResults: " + values.size() + " totalResultSize: " + totalValueSize
-                         + " resultSizes: " + valueSizeStr + " resultHashes: " + valueHashStr
-                         + " versions: " + versionsStr + " time: " + System.currentTimeMillis());
+            logger.debug(getType + " handlerRef: " + System.identityHashCode(this) + "start time: "
+                         + startTimeMs + " key: " + key + " " + (System.nanoTime() - startTimeNs)
+                         + " ns, keySize: " + key.length() + " numResults: " + values.size()
+                         + " totalResultSize: " + totalValueSize + " resultSizes: " + valueSizeStr
+                         + " resultHashes: " + valueHashStr + " versions: " + versionsStr
+                         + " time: " + System.currentTimeMillis());
         }
     }
 
@@ -418,7 +420,8 @@ public class VoldemortNativeRequestHandler extends AbstractRequestHandler implem
             writeException(outputStream, e);
         }
 
-        logger.debug("PUT started at: " + startTimeMs + " key: " + key + " "
+        logger.debug("PUT started at: " + startTimeMs + " handlerRef: "
+                     + System.identityHashCode(this) + " key: " + key + " "
                      + (System.nanoTime() - startTimeNs) + " ns, keySize: " + key.length()
                      + "valueHash: " + value.hashCode() + " valueSize: " + valueSize
                      + " clockSize: " + clock.sizeInBytes() + " time: "
@@ -442,8 +445,9 @@ public class VoldemortNativeRequestHandler extends AbstractRequestHandler implem
             writeException(outputStream, e);
         }
 
-        logger.debug("DELETE key: " + key + " " + (System.nanoTime() - startTimeNs)
-                     + " ns, keySize: " + key.length() + " clockSize: " + version.sizeInBytes());
+        logger.debug("DELETE key: " + key + " handlerRef: " + System.identityHashCode(this)
+                     + " time: " + (System.nanoTime() - startTimeNs) + " ns, keySize: "
+                     + key.length() + " clockSize: " + version.sizeInBytes());
     }
 
     private void writeException(DataOutputStream stream, VoldemortException e) throws IOException {

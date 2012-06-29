@@ -101,6 +101,8 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
                                                                     requestRoutingType,
                                                                     key,
                                                                     version);
+        logger.debug("DELETE keyRef: " + System.identityHashCode(key) + " requestRef: "
+                     + System.identityHashCode(clientRequest));
         requestAsync(clientRequest, callback, timeoutMs, "delete");
     }
 
@@ -114,6 +116,8 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
                                                               requestRoutingType,
                                                               key,
                                                               transforms);
+        logger.debug("GET keyRef: " + System.identityHashCode(key) + " requestRef: "
+                     + System.identityHashCode(clientRequest));
         requestAsync(clientRequest, callback, timeoutMs, "get");
     }
 
@@ -127,6 +131,8 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
                                                                     requestRoutingType,
                                                                     keys,
                                                                     transforms);
+        logger.debug("GETALL keyRef: " + System.identityHashCode(keys) + " requestRef: "
+                     + System.identityHashCode(clientRequest));
         requestAsync(clientRequest, callback, timeoutMs, "get all");
     }
 
@@ -138,6 +144,8 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
                                                                               requestFormat,
                                                                               requestRoutingType,
                                                                               key);
+        logger.debug("GETVERSIONS keyRef: " + System.identityHashCode(key) + " requestRef: "
+                     + System.identityHashCode(clientRequest));
         requestAsync(clientRequest, callback, timeoutMs, "get versions");
     }
 
@@ -153,6 +161,9 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
                                                               key,
                                                               value,
                                                               transforms);
+
+        logger.debug("PUT keyRef: " + System.identityHashCode(key) + " requestRef: "
+                     + System.identityHashCode(clientRequest));
         requestAsync(clientRequest, callback, timeoutMs, "put");
     }
 
@@ -163,6 +174,8 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
                                                                     requestRoutingType,
                                                                     key,
                                                                     version);
+        logger.debug("DELETE keyRef: " + System.identityHashCode(key) + " requestRef: "
+                     + System.identityHashCode(clientRequest));
         return request(clientRequest, "delete");
     }
 
@@ -173,6 +186,8 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
                                                               requestRoutingType,
                                                               key,
                                                               transforms);
+        logger.debug("GET keyRef: " + System.identityHashCode(key) + " requestRef: "
+                     + System.identityHashCode(clientRequest));
         return request(clientRequest, "get");
     }
 
@@ -185,6 +200,8 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
                                                                     requestRoutingType,
                                                                     keys,
                                                                     transforms);
+        logger.debug("GETALL keyRef: " + System.identityHashCode(keys) + " requestRef: "
+                     + System.identityHashCode(clientRequest));
         return request(clientRequest, "getAll");
     }
 
@@ -194,6 +211,8 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
                                                                               requestFormat,
                                                                               requestRoutingType,
                                                                               key);
+        logger.debug("GETVERSIONS keyRef: " + System.identityHashCode(key) + " requestRef: "
+                     + System.identityHashCode(clientRequest));
         return request(clientRequest, "getVersions");
     }
 
@@ -206,6 +225,8 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
                                                               key,
                                                               versioned,
                                                               transforms);
+        logger.debug("PUT keyRef: " + System.identityHashCode(key) + " requestRef: "
+                     + System.identityHashCode(clientRequest));
         request(clientRequest, "put");
     }
 
@@ -278,7 +299,8 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
                 clientRequestExecutor.close();
             }
 
-            Log.debug("Sync request end, type: " + operationName + " totalTimeNs: "
+            Log.debug("Sync request end, type: " + operationName + " requestRef: "
+                      + System.identityHashCode(delegate) + " totalTimeNs: "
                       + (startTimeNs - System.nanoTime()) + " start time: " + startTimeMs
                       + "end time: " + System.currentTimeMillis() + "client:"
                       + clientRequestExecutor.getSocketChannel().socket().getLocalAddress() + ":"
@@ -315,8 +337,9 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
         try {
             clientRequestExecutor = pool.checkout(destination);
 
-            Log.debug("Async request start; type: " + operationName + " time: "
-                      + System.currentTimeMillis() + " server: "
+            Log.debug("Async request start; type: " + operationName + " requestRef: "
+                      + System.identityHashCode(delegate) + " time: " + System.currentTimeMillis()
+                      + " server: "
                       + clientRequestExecutor.getSocketChannel().socket().getRemoteSocketAddress()
                       + " local socket: "
                       + clientRequestExecutor.getSocketChannel().socket().getLocalAddress() + ":"
@@ -372,7 +395,9 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
         private void invokeCallback(Object o, long requestTime) {
             if(callback != null) {
                 try {
-                    Log.warn("Async request end; time: "
+                    Log.warn("Async request end; requestRef: "
+                             + System.identityHashCode(clientRequest)
+                             + "time: "
                              + System.currentTimeMillis()
                              + " server: "
                              + clientRequestExecutor.getSocketChannel()

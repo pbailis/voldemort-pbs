@@ -245,9 +245,9 @@ public class PipelineRoutedStore extends RoutedStore {
                 results.addAll(value);
         }
 
-        logger.debug("Finished GET for key " + key + "; started at " + startMs + " took "
-                     + (System.nanoTime() - startNs) + " values: "
-                     + formatNodeValuesFromGet(pipelineData.getResponses()));
+        logger.debug("Finished GET for key " + key + " keyRef: " + System.identityHashCode(key)
+                     + "; started at " + startMs + " took " + (System.nanoTime() - startNs)
+                     + " values: " + formatNodeValuesFromGet(pipelineData.getResponses()));
 
         return results;
     }
@@ -342,7 +342,8 @@ public class PipelineRoutedStore extends RoutedStore {
         if(pipelineData.getFatalError() != null)
             throw pipelineData.getFatalError();
 
-        logger.debug("Finished GETALL for keys " + keys + "; started at " + startMs + " took "
+        logger.debug("Finished GETALL for keys " + keys + " keyRef: "
+                     + System.identityHashCode(keys) + "; started at " + startMs + " took "
                      + (System.nanoTime() - startNs) + " values: "
                      + formatNodeValuesFromGetAll(pipelineData.getResponses()));
 
@@ -448,7 +449,8 @@ public class PipelineRoutedStore extends RoutedStore {
         for(Response<ByteArray, List<Version>> response: pipelineData.getResponses())
             results.addAll(response.getValue());
 
-        logger.debug("Finished GETVERSIONS for key " + key + "; started at " + startMs + " took "
+        logger.debug("Finished GETVERSIONS for key " + key + " keyRef: "
+                     + System.identityHashCode(key) + "; started at " + startMs + " took "
                      + (System.nanoTime() - startNs) + " values: "
                      + formatNodeValuesFromGetVersions(pipelineData.getResponses()));
 
@@ -546,7 +548,8 @@ public class PipelineRoutedStore extends RoutedStore {
             throw e;
         }
 
-        logger.debug("Finished DELETE for key " + key.get() + "; started at " + startMs + " took "
+        logger.debug("Finished DELETE for key " + key.get() + " keyRef: "
+                     + System.identityHashCode(key) + "; started at " + startMs + " took "
                      + (System.nanoTime() - startNs));
 
         if(pipelineData.getFatalError() != null)
@@ -566,6 +569,10 @@ public class PipelineRoutedStore extends RoutedStore {
 
     public void put(ByteArray key, Versioned<byte[]> versioned, byte[] transforms)
             throws VoldemortException {
+
+        long startMs = System.currentTimeMillis();
+        long startNs = System.nanoTime();
+
         StoreUtils.assertValidKey(key);
         PutPipelineData pipelineData = new PutPipelineData();
         if(zoneRoutingEnabled)
@@ -659,6 +666,10 @@ public class PipelineRoutedStore extends RoutedStore {
             stats.reportException(e);
             throw e;
         }
+
+        logger.debug("Finished GET for key " + key + " keyRef: " + System.identityHashCode(key)
+                     + "; started at " + startMs + " took " + (System.nanoTime() - startNs)
+                     + " value: " + versioned);
 
         if(pipelineData.getFatalError() != null)
             throw pipelineData.getFatalError();
