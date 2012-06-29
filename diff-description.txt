@@ -24,8 +24,6 @@ SocketStore:
     opaque re: *what kind* of request
     logs remote and local ports, start/end time
 
-    TODO: logs per remote request, no correlation with higher-level routing
-
 SERVER
 
 AsyncRequestHandler:
