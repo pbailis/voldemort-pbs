@@ -1,39 +1,51 @@
 diff --git a/src/java/voldemort/server/niosocket/AsyncRequestHandler.java b/src/java/voldemort/server/niosocket/AsyncRequestHandler.java
-index d4df125..85caa38 100644
+index d4df125..261e21d 100644
 --- a/src/java/voldemort/server/niosocket/AsyncRequestHandler.java
 +++ b/src/java/voldemort/server/niosocket/AsyncRequestHandler.java
-@@ -282,8 +282,16 @@ public class AsyncRequestHandler extends SelectorManagerWorker {
+@@ -282,8 +282,23 @@ public class AsyncRequestHandler extends SelectorManagerWorker {
              if(logger.isTraceEnabled())
                  traceInputBufferState("Before streaming request handler");
  
 +            // this is the lowest level in the NioSocketServer stack at which we
 +            // still have a reference to the client IP address and port
-+            long startNs = System.nanoTime();
++            long startNs = -1;
++
++            if(logger.isDebugEnabled())
++                startNs = System.nanoTime();
 +
              state = streamRequestHandler.handleRequest(dataInputStream, dataOutputStream);
  
-+            logger.debug("Handled request from " + socketChannel.socket().getRemoteSocketAddress()
-+                         + " at time: " + System.currentTimeMillis() + " elapsed time: "
-+                         + (System.nanoTime() - startNs) + " ns");
++            if(logger.isDebugEnabled()) {
++                logger.debug("Handled request from "
++                             + socketChannel.socket().getRemoteSocketAddress() + " handlerRef: "
++                             + System.identityHashCode(streamRequestHandler) + " at time: "
++                             + System.currentTimeMillis() + " elapsed time: "
++                             + (System.nanoTime() - startNs) + " ns");
++            }
 +
              if(logger.isTraceEnabled())
                  traceInputBufferState("After streaming request handler");
          } catch(Exception e) {
 diff --git a/src/java/voldemort/server/protocol/vold/VoldemortNativeRequestHandler.java b/src/java/voldemort/server/protocol/vold/VoldemortNativeRequestHandler.java
-index b74b60a..b177ac7 100644
+index b74b60a..e905bf3 100644
 --- a/src/java/voldemort/server/protocol/vold/VoldemortNativeRequestHandler.java
 +++ b/src/java/voldemort/server/protocol/vold/VoldemortNativeRequestHandler.java
-@@ -101,6 +101,9 @@ public class VoldemortNativeRequestHandler extends AbstractRequestHandler implem
+@@ -101,6 +101,14 @@ public class VoldemortNativeRequestHandler extends AbstractRequestHandler implem
      private void handleGetVersion(DataInputStream inputStream,
                                    DataOutputStream outputStream,
                                    Store<ByteArray, byte[], byte[]> store) throws IOException {
-+        long startTimeNs = System.nanoTime();
-+        long startTimeMs = System.currentTimeMillis();
++        long startTimeMs = -1;
++        long startTimeNs = -1;
++
++        if(logger.isDebugEnabled()) {
++            startTimeMs = System.currentTimeMillis();
++            startTimeNs = System.nanoTime();
++        }
 +
          ByteArray key = readKey(inputStream);
          List<Version> results = null;
          try {
-@@ -112,11 +115,22 @@ public class VoldemortNativeRequestHandler extends AbstractRequestHandler implem
+@@ -112,11 +120,25 @@ public class VoldemortNativeRequestHandler extends AbstractRequestHandler implem
              return;
          }
          outputStream.writeInt(results.size());
@@ -50,40 +62,54 @@ index b74b60a..b177ac7 100644
              outputStream.write(clock);
          }
 +
-+        logger.debug("GETVERSIONS started at: " + startTimeMs + " key: " + key + " "
-+                     + (System.nanoTime() - startTimeNs) + " ns, keySize: " + key.length()
-+                     + "clocks: " + clockStr);
++        if(logger.isDebugEnabled()) {
++            logger.debug("GETVERSIONS started at: " + startTimeMs + " handlerRef: "
++                         + System.identityHashCode(this) + " key: " + key + " "
++                         + (System.nanoTime() - startTimeNs) + " ns, keySize: " + key.length()
++                         + "clocks: " + clockStr);
++        }
      }
  
      /**
-@@ -269,6 +283,9 @@ public class VoldemortNativeRequestHandler extends AbstractRequestHandler implem
+@@ -269,6 +291,14 @@ public class VoldemortNativeRequestHandler extends AbstractRequestHandler implem
      private void handleGet(DataInputStream inputStream,
                             DataOutputStream outputStream,
                             Store<ByteArray, byte[], byte[]> store) throws IOException {
-+        long startTimeMs = System.currentTimeMillis();
-+        long startTimeNs = System.nanoTime();
++        long startTimeMs = -1;
++        long startTimeNs = -1;
++
++        if(logger.isDebugEnabled()) {
++            startTimeMs = System.currentTimeMillis();
++            startTimeNs = System.nanoTime();
++        }
 +
          ByteArray key = readKey(inputStream);
  
          byte[] transforms = null;
-@@ -286,11 +303,16 @@ public class VoldemortNativeRequestHandler extends AbstractRequestHandler implem
+@@ -286,11 +316,22 @@ public class VoldemortNativeRequestHandler extends AbstractRequestHandler implem
              return;
          }
          writeResults(outputStream, results);
-+
-+        debugLogReturnValue(key, results, startTimeMs, startTimeNs, "GET");
++        if(logger.isDebugEnabled()) {
++            debugLogReturnValue(key, results, startTimeMs, startTimeNs, "GET");
++        }
      }
  
      private void handleGetAll(DataInputStream inputStream,
                                DataOutputStream outputStream,
                                Store<ByteArray, byte[], byte[]> store) throws IOException {
-+        long startTimeMs = System.currentTimeMillis();
-+        long startTimeNs = System.nanoTime();
++        long startTimeMs = -1;
++        long startTimeNs = -1;
++
++        if(logger.isDebugEnabled()) {
++            startTimeMs = System.currentTimeMillis();
++            startTimeNs = System.nanoTime();
++        }
 +
          // read keys
          int numKeys = inputStream.readInt();
          List<ByteArray> keys = new ArrayList<ByteArray>(numKeys);
-@@ -321,18 +343,61 @@ public class VoldemortNativeRequestHandler extends AbstractRequestHandler implem
+@@ -321,18 +362,67 @@ public class VoldemortNativeRequestHandler extends AbstractRequestHandler implem
  
          // write back the results
          outputStream.writeInt(results.size());
@@ -97,12 +123,14 @@ index b74b60a..b177ac7 100644
              // write the values
              writeResults(outputStream, entry.getValue());
 +
-+            debugLogReturnValue(entry.getKey(),
-+                                entry.getValue(),
-+                                startTimeMs,
-+                                startTimeNs,
-+                                "GETALL");
-+        }
++            if(logger.isDebugEnabled()) {
++                debugLogReturnValue(entry.getKey(),
++                                    entry.getValue(),
++                                    startTimeMs,
++                                    startTimeNs,
++                                    "GETALL");
++            }
+         }
 +
 +        logger.debug("GETALL end");
 +    }
@@ -112,78 +140,122 @@ index b74b60a..b177ac7 100644
 +                                     long startTimeMs,
 +                                     long startTimeNs,
 +                                     String getType) {
-+        if(logger.isDebugEnabled()) {
-+            long totalValueSize = 0;
-+            String valueSizeStr = "[";
-+            String valueHashStr = "[";
-+            String versionsStr = "[";
-+            for(Versioned<byte[]> b: values) {
-+                int len = b.getValue().length;
-+                totalValueSize += len;
-+                valueSizeStr += len + ",";
-+                valueHashStr += b.hashCode() + ",";
-+                versionsStr += b.getVersion();
-+            }
-+            valueSizeStr += "]";
-+            valueHashStr += "]";
-+            versionsStr += "]";
++        long totalValueSize = 0;
++        String valueSizeStr = "[";
++        String valueHashStr = "[";
++        String versionsStr = "[";
++        for(Versioned<byte[]> b: values) {
++            int len = b.getValue().length;
++            totalValueSize += len;
++            valueSizeStr += len + ",";
++            valueHashStr += b.hashCode() + ",";
++            versionsStr += b.getVersion();
++        }
++        valueSizeStr += "]";
++        valueHashStr += "]";
++        versionsStr += "]";
 +
-+            logger.debug(getType + "start time: " + startTimeMs + " key: " + key + " "
-+                         + (System.nanoTime() - startTimeNs) + " ns, keySize: " + key.length()
-+                         + " numResults: " + values.size() + " totalResultSize: " + totalValueSize
-+                         + " resultSizes: " + valueSizeStr + " resultHashes: " + valueHashStr
-+                         + " versions: " + versionsStr + " time: " + System.currentTimeMillis());
-         }
++        logger.debug(getType + " handlerRef: " + System.identityHashCode(this) + " start time: "
++                     + startTimeMs + " key: " + key + " elapsed time: "
++                     + (System.nanoTime() - startTimeNs) + " ns, keySize: " + key.length()
++                     + " numResults: " + values.size() + " totalResultSize: " + totalValueSize
++                     + " resultSizes: " + valueSizeStr + " resultHashes: " + valueHashStr
++                     + " versions: " + versionsStr + " current time: " + System.currentTimeMillis());
      }
  
      private void handlePut(DataInputStream inputStream,
                             DataOutputStream outputStream,
                             Store<ByteArray, byte[], byte[]> store) throws IOException {
-+        long startTimeMs = System.currentTimeMillis();
-+        long startTimeNs = System.nanoTime();
++        long startTimeMs = -1;
++        long startTimeNs = -1;
++
++        if(logger.isDebugEnabled()) {
++            startTimeMs = System.currentTimeMillis();
++            startTimeNs = System.nanoTime();
++        }
 +
          ByteArray key = readKey(inputStream);
          int valueSize = inputStream.readInt();
          byte[] bytes = new byte[valueSize];
-@@ -352,11 +417,18 @@ public class VoldemortNativeRequestHandler extends AbstractRequestHandler implem
+@@ -352,11 +442,28 @@ public class VoldemortNativeRequestHandler extends AbstractRequestHandler implem
          } catch(VoldemortException e) {
              writeException(outputStream, e);
          }
 +
-+        logger.debug("PUT started at: " + startTimeMs + " key: " + key + " "
-+                     + (System.nanoTime() - startTimeNs) + " ns, keySize: " + key.length()
-+                     + "valueHash: " + value.hashCode() + " valueSize: " + valueSize
-+                     + " clockSize: " + clock.sizeInBytes() + " time: "
-+                     + System.currentTimeMillis());
++        if(logger.isDebugEnabled()) {
++            logger.debug("PUT started at: " + startTimeMs + " handlerRef: "
++                         + System.identityHashCode(this) + " key: " + key + " "
++                         + (System.nanoTime() - startTimeNs) + " ns, keySize: " + key.length()
++                         + "valueHash: " + value.hashCode() + " valueSize: " + valueSize
++                         + " clockSize: " + clock.sizeInBytes() + " time: "
++                         + System.currentTimeMillis());
++        }
      }
  
      private void handleDelete(DataInputStream inputStream,
                                DataOutputStream outputStream,
                                Store<ByteArray, byte[], byte[]> store) throws IOException {
-+        long startTimeNs = System.nanoTime();
++        long startTimeMs = -1;
++        long startTimeNs = -1;
++
++        if(logger.isDebugEnabled()) {
++            startTimeMs = System.currentTimeMillis();
++            startTimeNs = System.nanoTime();
++        }
++
          ByteArray key = readKey(inputStream);
          int versionSize = inputStream.readShort();
          byte[] versionBytes = new byte[versionSize];
-@@ -369,6 +441,9 @@ public class VoldemortNativeRequestHandler extends AbstractRequestHandler implem
+@@ -369,6 +476,13 @@ public class VoldemortNativeRequestHandler extends AbstractRequestHandler implem
          } catch(VoldemortException e) {
              writeException(outputStream, e);
          }
 +
-+        logger.debug("DELETE key: " + key + " " + (System.nanoTime() - startTimeNs)
-+                     + " ns, keySize: " + key.length() + " clockSize: " + version.sizeInBytes());
++        if(logger.isDebugEnabled()) {
++            logger.debug("DELETE started at: " + startTimeMs + " key: " + key + " handlerRef: "
++                         + System.identityHashCode(this) + " time: "
++                         + (System.nanoTime() - startTimeNs) + " ns, keySize: " + key.length()
++                         + " clockSize: " + version.sizeInBytes());
++        }
      }
  
      private void writeException(DataOutputStream stream, VoldemortException e) throws IOException {
 diff --git a/src/java/voldemort/store/bdb/BdbStorageEngine.java b/src/java/voldemort/store/bdb/BdbStorageEngine.java
-index 61d809e..b6aaa46 100644
+index 61d809e..663824c 100644
 --- a/src/java/voldemort/store/bdb/BdbStorageEngine.java
 +++ b/src/java/voldemort/store/bdb/BdbStorageEngine.java
-@@ -250,12 +250,22 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
+@@ -209,6 +209,11 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
+                             Serializer<T> serializer) throws PersistenceFailureException {
+         StoreUtils.assertValidKey(key);
+ 
++        long startTimeNs = -1;
++
++        if(logger.isTraceEnabled())
++            startTimeNs = System.nanoTime();
++
+         Cursor cursor = null;
+         try {
+             cursor = getBdbDatabase().openCursor(null, null);
+@@ -225,6 +230,13 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
+             logger.error(e);
+             throw new PersistenceFailureException(e);
+         } finally {
++            if(logger.isTraceEnabled()) {
++                logger.trace("Completed GET from key " + key + " (keyRef: "
++                             + System.identityHashCode(key) + ") in "
++                             + (System.nanoTime() - startTimeNs) + " ns at "
++                             + System.currentTimeMillis());
++            }
++
+             attemptClose(cursor);
+         }
+     }
+@@ -250,12 +262,22 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
      public Map<ByteArray, List<Versioned<byte[]>>> getAll(Iterable<ByteArray> keys,
                                                            Map<ByteArray, byte[]> transforms)
              throws VoldemortException {
 +
-+        long startNs = System.nanoTime();
++        long startTimeNs = System.nanoTime();
 +
          StoreUtils.assertValidKeys(keys);
          Map<ByteArray, List<Versioned<byte[]>>> result = StoreUtils.newEmptyHashMap(keys);
@@ -201,94 +273,125 @@ index 61d809e..b6aaa46 100644
                  List<Versioned<byte[]>> values = get(cursor, key, readLockMode, versionedSerializer);
                  if(!values.isEmpty())
                      result.put(key, values);
-@@ -266,6 +276,10 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
+@@ -266,6 +288,12 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
          } finally {
              attemptClose(cursor);
          }
 +
-+        logger.debug("Completed GETALL from keys " + keyStr + " in "
-+                     + (System.nanoTime() - startNs) + " ns at " + System.currentTimeMillis());
++        if(logger.isTraceEnabled())
++            logger.trace("Completed GETALL from keys " + keyStr + " in "
++                         + (System.nanoTime() - startTimeNs) + " ns at "
++                         + System.currentTimeMillis());
 +
          return result;
      }
  
-@@ -275,6 +289,8 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
+@@ -275,6 +303,11 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
                                     Serializer<T> serializer) throws DatabaseException {
          StoreUtils.assertValidKey(key);
  
-+        long startNs = System.nanoTime();
++        long startTimeNs = -1;
++
++        if(logger.isTraceEnabled())
++            startTimeNs = System.nanoTime();
 +
          DatabaseEntry keyEntry = new DatabaseEntry(key.get());
          DatabaseEntry valueEntry = new DatabaseEntry();
          List<T> results = Lists.newArrayList();
-@@ -284,6 +300,10 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
+@@ -284,6 +317,13 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
                                                                                                                                                          lockMode)) {
              results.add(serializer.toObject(valueEntry.getData()));
          }
 +
-+        logger.debug("Completed GET from key " + key + " in " + (System.nanoTime() - startNs)
-+                     + " ns at " + System.currentTimeMillis());
++        if(logger.isTraceEnabled()) {
++            logger.trace("Completed GET from key " + key + " in "
++                         + (System.nanoTime() - startTimeNs) + " ns at "
++                         + System.currentTimeMillis());
++        }
 +
          return results;
      }
  
-@@ -291,6 +311,8 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
+@@ -291,6 +331,11 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
              throws PersistenceFailureException {
          StoreUtils.assertValidKey(key);
  
-+        long startNs = System.nanoTime();
++        long startTimeNs = -1;
++
++        if(logger.isTraceEnabled())
++            startTimeNs = System.nanoTime();
 +
          DatabaseEntry keyEntry = new DatabaseEntry(key.get());
          boolean succeeded = false;
          Transaction transaction = null;
-@@ -338,10 +360,16 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
+@@ -338,10 +383,23 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
              else
                  attemptAbort(transaction);
          }
 +
-+        logger.debug("Completed PUT to key " + key + " value " + value + " in "
-+                     + (System.nanoTime() - startNs) + " ns at " + System.currentTimeMillis());
++        if(logger.isTraceEnabled()) {
++            logger.trace("Completed PUT to key " + key + " (keyRef: "
++                         + System.identityHashCode(key) + " value " + value + " in "
++                         + (System.nanoTime() - startTimeNs) + " ns at "
++                         + System.currentTimeMillis());
++        }
      }
  
      public boolean delete(ByteArray key, Version version) throws PersistenceFailureException {
          StoreUtils.assertValidKey(key);
 +
-+        long startNs = System.nanoTime();
++        long startTimeNs = -1;
++
++        if(logger.isTraceEnabled())
++            startTimeNs = System.nanoTime();
 +
          boolean deletedSomething = false;
          Cursor cursor = null;
          Transaction transaction = null;
-@@ -366,6 +394,9 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
+@@ -366,6 +424,14 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
              logger.error(e);
              throw new PersistenceFailureException(e);
          } finally {
-+            logger.debug("Completed DELETE of key " + key + " in " + (System.nanoTime() - startNs)
-+                         + " ns at " + System.currentTimeMillis());
++
++            if(logger.isTraceEnabled()) {
++                logger.trace("Completed DELETE of key " + key + " (keyRef: "
++                             + System.identityHashCode(key) + ") in "
++                             + (System.nanoTime() - startTimeNs) + " ns at "
++                             + System.currentTimeMillis());
++            }
 +
              try {
                  attemptClose(cursor);
              } finally {
 diff --git a/src/java/voldemort/store/routed/PipelineRoutedStore.java b/src/java/voldemort/store/routed/PipelineRoutedStore.java
-index 38ff905..4a10bc7 100644
+index 38ff905..ef7de16 100644
 --- a/src/java/voldemort/store/routed/PipelineRoutedStore.java
 +++ b/src/java/voldemort/store/routed/PipelineRoutedStore.java
-@@ -144,6 +144,9 @@ public class PipelineRoutedStore extends RoutedStore {
+@@ -144,6 +144,14 @@ public class PipelineRoutedStore extends RoutedStore {
      public List<Versioned<byte[]>> get(final ByteArray key, final byte[] transforms) {
          StoreUtils.assertValidKey(key);
  
-+        long startMs = System.currentTimeMillis();
-+        long startNs = System.nanoTime();
++        long startTimeMs = -1;
++        long startTimeNs = -1;
++
++        if(logger.isDebugEnabled()) {
++            startTimeMs = System.currentTimeMillis();
++            startTimeNs = System.nanoTime();
++        }
 +
          BasicPipelineData<List<Versioned<byte[]>>> pipelineData = new BasicPipelineData<List<Versioned<byte[]>>>();
          if(zoneRoutingEnabled)
              pipelineData.setZonesRequired(storeDef.getZoneCountReads());
-@@ -242,14 +245,35 @@ public class PipelineRoutedStore extends RoutedStore {
+@@ -242,14 +250,43 @@ public class PipelineRoutedStore extends RoutedStore {
                  results.addAll(value);
          }
  
-+        logger.debug("Finished GET for key " + key + "; started at " + startMs + " took "
-+                     + (System.nanoTime() - startNs) + " values: "
-+                     + formatNodeValuesFromGet(pipelineData.getResponses()));
++        if(logger.isDebugEnabled()) {
++            logger.debug("Finished GET for key " + key + " keyRef: " + System.identityHashCode(key)
++                         + "; started at " + startTimeMs + " took "
++                         + (System.nanoTime() - startTimeNs) + " values: "
++                         + formatNodeValuesFromGet(pipelineData.getResponses()));
++        }
 +
          return results;
      }
@@ -312,19 +415,27 @@ index 38ff905..4a10bc7 100644
              throws VoldemortException {
          StoreUtils.assertValidKeys(keys);
  
-+        long startNs = System.nanoTime();
-+        long startMs = System.currentTimeMillis();
++        long startTimeMs = -1;
++        long startTimeNs = -1;
++
++        if(logger.isDebugEnabled()) {
++            startTimeMs = System.currentTimeMillis();
++            startTimeNs = System.nanoTime();
++        }
 +
          boolean allowReadRepair = repairReads && (transforms == null || transforms.size() == 0);
  
          GetAllPipelineData pipelineData = new GetAllPipelineData();
-@@ -318,12 +342,33 @@ public class PipelineRoutedStore extends RoutedStore {
+@@ -318,12 +355,41 @@ public class PipelineRoutedStore extends RoutedStore {
          if(pipelineData.getFatalError() != null)
              throw pipelineData.getFatalError();
  
-+        logger.debug("Finished GETALL for keys " + keys + "; started at " + startMs + " took "
-+                     + (System.nanoTime() - startNs) + " values: "
-+                     + formatNodeValuesFromGetAll(pipelineData.getResponses()));
++        if(logger.isDebugEnabled()) {
++            logger.debug("Finished GETALL for keys " + keys + " keyRef: "
++                         + System.identityHashCode(keys) + "; started at " + startTimeMs + " took "
++                         + (System.nanoTime() - startTimeNs) + " values: "
++                         + formatNodeValuesFromGetAll(pipelineData.getResponses()));
++        }
 +
          return pipelineData.getResult();
      }
@@ -346,19 +457,27 @@ index 38ff905..4a10bc7 100644
      public List<Version> getVersions(final ByteArray key) {
          StoreUtils.assertValidKey(key);
  
-+        long startMs = System.currentTimeMillis();
-+        long startNs = System.nanoTime();
++        long startTimeMs = -1;
++        long startTimeNs = -1;
++
++        if(logger.isDebugEnabled()) {
++            startTimeMs = System.currentTimeMillis();
++            startTimeNs = System.nanoTime();
++        }
 +
          BasicPipelineData<List<Version>> pipelineData = new BasicPipelineData<List<Version>>();
          if(zoneRoutingEnabled)
              pipelineData.setZonesRequired(storeDef.getZoneCountReads());
-@@ -403,12 +448,33 @@ public class PipelineRoutedStore extends RoutedStore {
+@@ -403,12 +469,41 @@ public class PipelineRoutedStore extends RoutedStore {
          for(Response<ByteArray, List<Version>> response: pipelineData.getResponses())
              results.addAll(response.getValue());
  
-+        logger.debug("Finished GETVERSIONS for key " + key + "; started at " + startMs + " took "
-+                     + (System.nanoTime() - startNs) + " values: "
-+                     + formatNodeValuesFromGetVersions(pipelineData.getResponses()));
++        if(logger.isDebugEnabled()) {
++            logger.debug("Finished GETVERSIONS for key " + key + " keyRef: "
++                         + System.identityHashCode(key) + "; started at " + startTimeMs + " took "
++                         + (System.nanoTime() - startTimeNs) + " values: "
++                         + formatNodeValuesFromGetVersions(pipelineData.getResponses()));
++        }
 +
          return results;
      }
@@ -380,22 +499,59 @@ index 38ff905..4a10bc7 100644
      public boolean delete(final ByteArray key, final Version version) throws VoldemortException {
          StoreUtils.assertValidKey(key);
  
-+        long startMs = System.currentTimeMillis();
-+        long startNs = System.nanoTime();
++        long startTimeMs = -1;
++        long startTimeNs = -1;
++
++        if(logger.isDebugEnabled()) {
++            startTimeMs = System.currentTimeMillis();
++            startTimeNs = System.nanoTime();
++        }
 +
          BasicPipelineData<Boolean> pipelineData = new BasicPipelineData<Boolean>();
          if(zoneRoutingEnabled)
              pipelineData.setZonesRequired(storeDef.getZoneCountWrites());
-@@ -480,6 +546,9 @@ public class PipelineRoutedStore extends RoutedStore {
+@@ -480,6 +575,12 @@ public class PipelineRoutedStore extends RoutedStore {
              throw e;
          }
  
-+        logger.debug("Finished DELETE for key " + key.get() + "; started at " + startMs + " took "
-+                     + (System.nanoTime() - startNs));
++        if(logger.isDebugEnabled()) {
++            logger.debug("Finished DELETE for key " + key.get() + " keyRef: "
++                         + System.identityHashCode(key) + "; started at " + startTimeMs + " took "
++                         + (System.nanoTime() - startTimeNs));
++        }
 +
          if(pipelineData.getFatalError() != null)
              throw pipelineData.getFatalError();
  
+@@ -497,6 +598,15 @@ public class PipelineRoutedStore extends RoutedStore {
+ 
+     public void put(ByteArray key, Versioned<byte[]> versioned, byte[] transforms)
+             throws VoldemortException {
++
++        long startTimeMs = -1;
++        long startTimeNs = -1;
++
++        if(logger.isDebugEnabled()) {
++            startTimeMs = System.currentTimeMillis();
++            startTimeNs = System.nanoTime();
++        }
++
+         StoreUtils.assertValidKey(key);
+         PutPipelineData pipelineData = new PutPipelineData();
+         if(zoneRoutingEnabled)
+@@ -591,6 +701,12 @@ public class PipelineRoutedStore extends RoutedStore {
+             throw e;
+         }
+ 
++        if(logger.isDebugEnabled()) {
++            logger.debug("Finished GET for key " + key + " keyRef: " + System.identityHashCode(key)
++                         + "; started at " + startTimeMs + " took "
++                         + (System.nanoTime() - startTimeNs) + " value: " + versioned);
++        }
++
+         if(pipelineData.getFatalError() != null)
+             throw pipelineData.getFatalError();
+     }
 diff --git a/src/java/voldemort/store/routed/action/AbstractReadRepair.java b/src/java/voldemort/store/routed/action/AbstractReadRepair.java
 index 2588c36..c87f397 100644
 --- a/src/java/voldemort/store/routed/action/AbstractReadRepair.java
@@ -437,21 +593,23 @@ index 2588c36..c87f397 100644
  
          pipeline.addEvent(completeEvent);
 diff --git a/src/java/voldemort/store/routed/action/PerformParallelPutRequests.java b/src/java/voldemort/store/routed/action/PerformParallelPutRequests.java
-index c459057..ddede94 100644
+index c459057..a837341 100644
 --- a/src/java/voldemort/store/routed/action/PerformParallelPutRequests.java
 +++ b/src/java/voldemort/store/routed/action/PerformParallelPutRequests.java
-@@ -129,6 +129,9 @@ public class PerformParallelPutRequests extends
+@@ -129,6 +129,11 @@ public class PerformParallelPutRequests extends
                                                                                             requestTime);
                      responses.put(node.getId(), response);
  
-+                    logger.debug("Finished secondary PUT for key " + key + "; took " + requestTime
-+                                 + " ms on node " + node.getId() + "(" + node.getHost() + ")");
++                    if(logger.isDebugEnabled())
++                        logger.debug("Finished secondary PUT for key " + key + " (keyRef: "
++                                     + System.identityHashCode(key) + "); took " + requestTime
++                                     + " ms on node " + node.getId() + "(" + node.getHost() + ")");
 +
                      if(isHintedHandoffEnabled() && pipeline.isFinished()) {
                          if(response.getValue() instanceof UnreachableStoreException) {
                              Slop slop = new Slop(pipelineData.getStoreName(),
 diff --git a/src/java/voldemort/store/routed/action/PerformParallelRequests.java b/src/java/voldemort/store/routed/action/PerformParallelRequests.java
-index a5a0ef9..d4fa4a3 100644
+index a5a0ef9..a0f73b4 100644
 --- a/src/java/voldemort/store/routed/action/PerformParallelRequests.java
 +++ b/src/java/voldemort/store/routed/action/PerformParallelRequests.java
 @@ -95,6 +95,8 @@ public class PerformParallelRequests<V, PD extends BasicPipelineData<V>> extends
@@ -463,29 +621,31 @@ index a5a0ef9..d4fa4a3 100644
              NonblockingStoreCallback callback = new NonblockingStoreCallback() {
  
                  public void requestComplete(Object result, long requestTime) {
-@@ -107,6 +109,11 @@ public class PerformParallelRequests<V, PD extends BasicPipelineData<V>> extends
+@@ -107,6 +109,12 @@ public class PerformParallelRequests<V, PD extends BasicPipelineData<V>> extends
                                                                                             key,
                                                                                             result,
                                                                                             requestTime);
-+
-+                    logger.debug("Finished GET for key " + key + "; started at " + startMs
-+                                 + " took " + requestTime + " ms on node " + node.getId() + "("
-+                                 + node.getHost() + ")");
++                    if(logger.isDebugEnabled())
++                        logger.debug("Finished GET for key " + key + " (keyRef: "
++                                     + System.identityHashCode(key) + "); started at " + startMs
++                                     + " took " + requestTime + " ms on node " + node.getId() + "("
++                                     + node.getHost() + ")");
 +
                      responses.put(node.getId(), response);
                      latch.countDown();
  
-@@ -164,6 +171,9 @@ public class PerformParallelRequests<V, PD extends BasicPipelineData<V>> extends
+@@ -164,6 +172,10 @@ public class PerformParallelRequests<V, PD extends BasicPipelineData<V>> extends
              }
          }
  
-+        logger.debug("GET for key " + key + " successes: " + pipelineData.getSuccesses()
-+                     + " preferred: " + preferred + " required: " + required);
++        if(logger.isDebugEnabled())
++            logger.debug("GET for key " + key + " successes: " + pipelineData.getSuccesses()
++                         + " preferred: " + preferred + " required: " + required);
 +
          if(pipelineData.getSuccesses() < required) {
              if(insufficientSuccessesEvent != null) {
                  pipeline.addEvent(insufficientSuccessesEvent);
-@@ -184,7 +194,6 @@ public class PerformParallelRequests<V, PD extends BasicPipelineData<V>> extends
+@@ -184,7 +196,6 @@ public class PerformParallelRequests<V, PD extends BasicPipelineData<V>> extends
              }
  
          } else {
@@ -493,38 +653,42 @@ index a5a0ef9..d4fa4a3 100644
              if(pipelineData.getZonesRequired() != null) {
  
                  int zonesSatisfied = pipelineData.getZoneResponses().size();
-@@ -216,5 +225,4 @@ public class PerformParallelRequests<V, PD extends BasicPipelineData<V>> extends
+@@ -216,5 +227,4 @@ public class PerformParallelRequests<V, PD extends BasicPipelineData<V>> extends
              }
          }
      }
 -
  }
 diff --git a/src/java/voldemort/store/routed/action/PerformSerialGetAllRequests.java b/src/java/voldemort/store/routed/action/PerformSerialGetAllRequests.java
-index 2f5d07e..9b5f25b 100644
+index 2f5d07e..e36da11 100644
 --- a/src/java/voldemort/store/routed/action/PerformSerialGetAllRequests.java
 +++ b/src/java/voldemort/store/routed/action/PerformSerialGetAllRequests.java
-@@ -79,6 +79,9 @@ public class PerformSerialGetAllRequests
+@@ -79,6 +79,10 @@ public class PerformSerialGetAllRequests
              boolean zoneRequirement = false;
              MutableInt successCount = pipelineData.getSuccessCount(key);
  
-+            logger.debug("GETALL for key " + key + " successes: " + successCount.intValue()
-+                         + " preferred: " + preferred + " required: " + required);
++            logger.debug("GETALL for key " + key + " (keyRef: " + System.identityHashCode(key)
++                         + ") successes: " + successCount.intValue() + " preferred: " + preferred
++                         + " required: " + required);
 +
              if(successCount.intValue() >= preferred) {
                  if(pipelineData.getZonesRequired() != null) {
  
-@@ -132,6 +135,10 @@ public class PerformSerialGetAllRequests
+@@ -132,6 +136,13 @@ public class PerformSerialGetAllRequests
                      pipelineData.getResponses().add(response);
                      failureDetector.recordSuccess(response.getNode(), response.getRequestTime());
  
-+                    logger.debug("GET for key " + key + " successes: " + successCount.intValue()
-+                                 + " preferred: " + preferred + " required: " + required
-+                                 + " new GET success on node " + node.getId());
++                    if(logger.isDebugEnabled())
++                        logger.debug("GET for key " + key + " (keyRef: "
++                                     + System.identityHashCode(key) + ") successes: "
++                                     + successCount.intValue() + " preferred: " + preferred
++                                     + " required: " + required + " new GET success on node "
++                                     + node.getId());
 +
                      HashSet<Integer> zoneResponses = null;
                      if(pipelineData.getKeyToZoneResponse().containsKey(key)) {
                          zoneResponses = pipelineData.getKeyToZoneResponse().get(key);
-@@ -187,5 +194,4 @@ public class PerformSerialGetAllRequests
+@@ -187,5 +198,4 @@ public class PerformSerialGetAllRequests
  
          pipeline.addEvent(completeEvent);
      }
@@ -532,7 +696,7 @@ index 2f5d07e..9b5f25b 100644
  }
 \ No newline at end of file
 diff --git a/src/java/voldemort/store/routed/action/PerformSerialPutRequests.java b/src/java/voldemort/store/routed/action/PerformSerialPutRequests.java
-index 5d8debe..b6ed22b 100644
+index 5d8debe..8be08e0 100644
 --- a/src/java/voldemort/store/routed/action/PerformSerialPutRequests.java
 +++ b/src/java/voldemort/store/routed/action/PerformSerialPutRequests.java
 @@ -74,11 +74,15 @@ public class PerformSerialPutRequests extends
@@ -552,45 +716,51 @@ index 5d8debe..b6ed22b 100644
              pipelineData.incrementNodeIndex();
  
              VectorClock versionedClock = (VectorClock) versioned.getVersion();
-@@ -108,6 +112,10 @@ public class PerformSerialPutRequests extends
+@@ -108,6 +112,12 @@ public class PerformSerialPutRequests extends
              } catch(Exception e) {
                  long requestTime = (System.nanoTime() - start) / Time.NS_PER_MS;
  
-+                logger.debug("Master PUT at node " + currentNode + "(" + node.getHost() + ")"
-+                             + " failed (" + e.getMessage() + ") in " + (System.nanoTime() - start)
-+                             + " ns");
++                if(logger.isDebugEnabled())
++                    logger.debug("Master PUT at node " + currentNode + "(" + node.getHost() + ")"
++                                 + " failed (" + e.getMessage() + ") in "
++                                 + (System.nanoTime() - start) + " ns" + " (keyRef: "
++                                 + System.identityHashCode(key) + ")");
 +
                  if(handleResponseError(e, node, requestTime, pipeline, failureDetector))
                      return;
              }
-@@ -161,6 +169,10 @@ public class PerformSerialPutRequests extends
+@@ -161,6 +171,12 @@ public class PerformSerialPutRequests extends
                  }
              }
          } else {
-+            logger.debug("Finished master PUT for key " + key + "; started at " + startMasterMs
-+                         + " took " + (System.nanoTime() - startMasterNs) + " ns on node "
-+                         + node.getId() + "(" + node.getHost() + ")");
++            if(logger.isDebugEnabled())
++                logger.debug("Finished master PUT for key " + key + " (keyRef: "
++                             + System.identityHashCode(key) + "); started at " + startMasterMs
++                             + " took " + (System.nanoTime() - startMasterNs) + " ns on node "
++                             + node.getId() + "(" + node.getHost() + ")");
 +
              pipeline.addEvent(masterDeterminedEvent);
          }
      }
 diff --git a/src/java/voldemort/store/routed/action/PerformSerialRequests.java b/src/java/voldemort/store/routed/action/PerformSerialRequests.java
-index 70c8fa5..356a620 100644
+index 70c8fa5..cd3526e 100644
 --- a/src/java/voldemort/store/routed/action/PerformSerialRequests.java
 +++ b/src/java/voldemort/store/routed/action/PerformSerialRequests.java
-@@ -98,6 +98,10 @@ public class PerformSerialRequests<V, PD extends BasicPipelineData<V>> extends
+@@ -98,6 +98,12 @@ public class PerformSerialRequests<V, PD extends BasicPipelineData<V>> extends
                                                                               result,
                                                                               ((System.nanoTime() - start) / Time.NS_PER_MS));
  
-+                logger.debug("GET for key " + key + " successes: " + pipelineData.getSuccesses()
-+                             + " preferred: " + preferred + " required: " + required
-+                             + " new GET success on node " + node.getId());
++                if(logger.isDebugEnabled())
++                    logger.debug("GET for key " + key + " successes: "
++                                 + pipelineData.getSuccesses() + " preferred: " + preferred
++                                 + " required: " + required + " new GET success on node "
++                                 + node.getId());
 +
                  pipelineData.incrementSuccesses();
                  pipelineData.getResponses().add(response);
                  failureDetector.recordSuccess(response.getNode(), response.getRequestTime());
 diff --git a/src/java/voldemort/store/slop/HintedHandoff.java b/src/java/voldemort/store/slop/HintedHandoff.java
-index a4a6621..bc15ef7 100644
+index a4a6621..2205fbc 100644
 --- a/src/java/voldemort/store/slop/HintedHandoff.java
 +++ b/src/java/voldemort/store/slop/HintedHandoff.java
 @@ -27,10 +27,10 @@ import voldemort.serialization.Serializer;
@@ -615,7 +785,7 @@ index a4a6621..bc15ef7 100644
       * @param slopStores A map of node ids to blocking slop stores
       * @param handoffStrategy The {@link HintedHandoffStrategy} implementation
       * @param failedNodes A list of nodes in the original preflist for the
-@@ -89,30 +90,33 @@ public class HintedHandoff {
+@@ -89,30 +90,35 @@ public class HintedHandoff {
      }
  
      /**
@@ -651,16 +821,17 @@ index a4a6621..bc15ef7 100644
                  final long startNs = System.nanoTime();
 -                if(logger.isTraceEnabled())
 -                    logger.trace("Attempt to write " + slop.getKey() + " for " + failedNode
--                                 + " to node " + node);
-+                logger.debug("Slop attempt to write " + slop.getKey() + " for " + failedNode
-+                             + " to node " + node);
++
++                if(logger.isDebugEnabled())
++                    logger.debug("Slop attempt to write " + slop.getKey() + " for " + failedNode
+                                  + " to node " + node);
  
                  NonblockingStoreCallback callback = new NonblockingStoreCallback() {
 +
                      public void requestComplete(Object result, long requestTime) {
                          Response<ByteArray, Object> response = new Response<ByteArray, Object>(node,
                                                                                                 slopKey,
-@@ -127,31 +131,38 @@ public class HintedHandoff {
+@@ -127,31 +133,39 @@ public class HintedHandoff {
                                      failedNodes.add(node);
                                  if(response.getValue() instanceof UnreachableStoreException) {
                                      UnreachableStoreException use = (UnreachableStoreException) response.getValue();
@@ -681,9 +852,10 @@ index a4a6621..bc15ef7 100644
                              return;
                          }
 +
-+                        logger.debug("Slop write of key " + slop.getKey() + " for " + failedNode
-+                                     + " to node " + node + " succeded in "
-+                                     + (System.nanoTime() - startNs) + " ns");
++                        if(logger.isDebugEnabled())
++                            logger.debug("Slop write of key " + slop.getKey() + " for "
++                                         + failedNode + " to node " + node + " succeded in "
++                                         + (System.nanoTime() - startNs) + " ns");
 +
                          failureDetector.recordSuccess(node, (System.nanoTime() - startNs)
                                                              / Time.NS_PER_MS);
@@ -706,7 +878,7 @@ index a4a6621..bc15ef7 100644
      /**
       * Send a hint of a request originally meant for the failed node to another
       * node in the ring, as selected by the {@link HintedHandoffStrategy}
-@@ -166,8 +177,7 @@ public class HintedHandoff {
+@@ -166,8 +180,7 @@ public class HintedHandoff {
          boolean persisted = false;
          for(Node node: handoffStrategy.routeHint(failedNode)) {
              int nodeId = node.getId();
@@ -716,7 +888,7 @@ index a4a6621..bc15ef7 100644
  
              if(!failedNodes.contains(node) && failureDetector.isAvailable(node)) {
                  Store<ByteArray, Slop, byte[]> slopStore = slopStores.get(nodeId);
-@@ -175,10 +185,8 @@ public class HintedHandoff {
+@@ -175,10 +188,10 @@ public class HintedHandoff {
                  long startNs = System.nanoTime();
  
                  try {
@@ -724,24 +896,28 @@ index a4a6621..bc15ef7 100644
 -                        logger.trace("Attempt to handoff " + slop.getOperation() + " on "
 -                                     + slop.getKey() + " for " + failedNode
 -                                     + " to node " + node);
-+                    logger.debug("Slop attempt to write " + slop.getKey() + " for " + failedNode
-+                                 + " to node " + node);
++                    if(logger.isDebugEnabled())
++                        logger.debug("Slop attempt to write " + slop.getKey() + " (keyRef: "
++                                     + System.identityHashCode(slop.getKey()) + ") for "
++                                     + failedNode + " to node " + node);
  
                      // No transform needs to applied to the slop
                      slopStore.put(slop.makeKey(), new Versioned<Slop>(slop, version), null);
-@@ -197,6 +205,10 @@ public class HintedHandoff {
+@@ -197,6 +210,12 @@ public class HintedHandoff {
                  } catch(ObsoleteVersionException e) {
                      logger.debug(e, e);
                  }
 +
-+                logger.debug("Slop write of key " + slop.getKey() + " for " + failedNode
-+                             + " to node " + node + " succeded in " + (System.nanoTime() - startNs)
-+                             + " ns");
++                if(logger.isDebugEnabled())
++                    logger.debug("Slop write of key " + slop.getKey() + " (keyRef: "
++                                 + System.identityHashCode(slop.getKey()) + " for " + failedNode
++                                 + " to node " + node + " succeded in "
++                                 + (System.nanoTime() - startNs) + " ns");
              }
          }
  
 diff --git a/src/java/voldemort/store/socket/SocketStore.java b/src/java/voldemort/store/socket/SocketStore.java
-index 0886341..d83ac44 100644
+index 0886341..6fd1a3c 100644
 --- a/src/java/voldemort/store/socket/SocketStore.java
 +++ b/src/java/voldemort/store/socket/SocketStore.java
 @@ -25,6 +25,7 @@ import java.util.Map;
@@ -752,7 +928,107 @@ index 0886341..d83ac44 100644
  
  import voldemort.VoldemortException;
  import voldemort.client.protocol.RequestFormat;
-@@ -240,17 +241,35 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
+@@ -100,6 +101,9 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
+                                                                     requestRoutingType,
+                                                                     key,
+                                                                     version);
++        if(logger.isDebugEnabled())
++            logger.debug("DELETE keyRef: " + System.identityHashCode(key) + " requestRef: "
++                         + System.identityHashCode(clientRequest));
+         requestAsync(clientRequest, callback, timeoutMs, "delete");
+     }
+ 
+@@ -113,6 +117,9 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
+                                                               requestRoutingType,
+                                                               key,
+                                                               transforms);
++        if(logger.isDebugEnabled())
++            logger.debug("GET keyRef: " + System.identityHashCode(key) + " requestRef: "
++                         + System.identityHashCode(clientRequest));
+         requestAsync(clientRequest, callback, timeoutMs, "get");
+     }
+ 
+@@ -126,6 +133,9 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
+                                                                     requestRoutingType,
+                                                                     keys,
+                                                                     transforms);
++        if(logger.isDebugEnabled())
++            logger.debug("GETALL keyRef: " + System.identityHashCode(keys) + " requestRef: "
++                         + System.identityHashCode(clientRequest));
+         requestAsync(clientRequest, callback, timeoutMs, "get all");
+     }
+ 
+@@ -137,6 +147,9 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
+                                                                               requestFormat,
+                                                                               requestRoutingType,
+                                                                               key);
++        if(logger.isDebugEnabled())
++            logger.debug("GETVERSIONS keyRef: " + System.identityHashCode(key) + " requestRef: "
++                         + System.identityHashCode(clientRequest));
+         requestAsync(clientRequest, callback, timeoutMs, "get versions");
+     }
+ 
+@@ -152,6 +165,9 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
+                                                               key,
+                                                               value,
+                                                               transforms);
++        if(logger.isDebugEnabled())
++            logger.debug("PUT keyRef: " + System.identityHashCode(key) + " requestRef: "
++                         + System.identityHashCode(clientRequest));
+         requestAsync(clientRequest, callback, timeoutMs, "put");
+     }
+ 
+@@ -162,6 +178,9 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
+                                                                     requestRoutingType,
+                                                                     key,
+                                                                     version);
++        if(logger.isDebugEnabled())
++            logger.debug("DELETE keyRef: " + System.identityHashCode(key) + " requestRef: "
++                         + System.identityHashCode(clientRequest));
+         return request(clientRequest, "delete");
+     }
+ 
+@@ -172,6 +191,9 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
+                                                               requestRoutingType,
+                                                               key,
+                                                               transforms);
++        if(logger.isDebugEnabled())
++            logger.debug("GET keyRef: " + System.identityHashCode(key) + " requestRef: "
++                         + System.identityHashCode(clientRequest));
+         return request(clientRequest, "get");
+     }
+ 
+@@ -184,6 +206,9 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
+                                                                     requestRoutingType,
+                                                                     keys,
+                                                                     transforms);
++        if(logger.isDebugEnabled())
++            logger.debug("GETALL keyRef: " + System.identityHashCode(keys) + " requestRef: "
++                         + System.identityHashCode(clientRequest));
+         return request(clientRequest, "getAll");
+     }
+ 
+@@ -193,6 +218,9 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
+                                                                               requestFormat,
+                                                                               requestRoutingType,
+                                                                               key);
++        if(logger.isDebugEnabled())
++            logger.debug("GETVERSIONS keyRef: " + System.identityHashCode(key) + " requestRef: "
++                         + System.identityHashCode(clientRequest));
+         return request(clientRequest, "getVersions");
+     }
+ 
+@@ -205,6 +233,9 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
+                                                               key,
+                                                               versioned,
+                                                               transforms);
++        if(logger.isDebugEnabled())
++            logger.debug("PUT keyRef: " + System.identityHashCode(key) + " requestRef: "
++                         + System.identityHashCode(clientRequest));
+         request(clientRequest, "put");
+     }
+ 
+@@ -240,17 +271,35 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
  
      private <T> T request(ClientRequest<T> delegate, String operationName) {
          ClientRequestExecutor clientRequestExecutor = pool.checkout(destination);
@@ -788,43 +1064,47 @@ index 0886341..d83ac44 100644
              throw new UnreachableStoreException("Failure in " + operationName + " on "
                                                  + destination + ": " + e.getMessage(), e);
          } finally {
-@@ -258,6 +277,16 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
+@@ -258,6 +307,29 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
                  // close the executor if we timed out
                  clientRequestExecutor.close();
              }
 +
-+            Log.debug("Sync request end, type: " + operationName + " totalTimeNs: "
-+                      + (startTimeNs - System.nanoTime()) + " start time: " + startTimeMs
-+                      + "end time: " + System.currentTimeMillis() + "client:"
-+                      + clientRequestExecutor.getSocketChannel().socket().getLocalAddress() + ":"
-+                      + clientRequestExecutor.getSocketChannel().socket().getLocalPort()
-+                      + " server: "
-+                      + clientRequestExecutor.getSocketChannel().socket().getRemoteSocketAddress()
-+                      + " outcome: " + debugMsgStr);
++            if(logger.isDebugEnabled()) {
++                Log.debug("Sync request end, type: "
++                          + operationName
++                          + " requestRef: "
++                          + System.identityHashCode(delegate)
++                          + " totalTimeNs: "
++                          + (startTimeNs - System.nanoTime())
++                          + " start time: "
++                          + startTimeMs
++                          + "end time: "
++                          + System.currentTimeMillis()
++                          + "client:"
++                          + clientRequestExecutor.getSocketChannel().socket().getLocalAddress()
++                          + ":"
++                          + clientRequestExecutor.getSocketChannel().socket().getLocalPort()
++                          + " server: "
++                          + clientRequestExecutor.getSocketChannel()
++                                                 .socket()
++                                                 .getRemoteSocketAddress() + " outcome: "
++                          + debugMsgStr);
++            }
 +
              pool.checkin(destination, clientRequestExecutor);
          }
      }
-@@ -285,6 +314,14 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
+@@ -285,6 +357,23 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
  
          try {
              clientRequestExecutor = pool.checkout(destination);
 +
-+            Log.debug("Async request start; type: " + operationName + " time: "
-+                      + System.currentTimeMillis() + " server: "
-+                      + clientRequestExecutor.getSocketChannel().socket().getRemoteSocketAddress()
-+                      + " local socket: "
-+                      + clientRequestExecutor.getSocketChannel().socket().getLocalAddress() + ":"
-+                      + clientRequestExecutor.getSocketChannel().socket().getLocalPort());
-+
-         } catch(Exception e) {
-             // If we can't check out a socket from the pool, we'll usually get
-             // either an IOException (subclass) or an UnreachableStoreException
-@@ -335,6 +372,17 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
-         private void invokeCallback(Object o, long requestTime) {
-             if(callback != null) {
-                 try {
-+                    Log.warn("Async request end; time: "
++            if(logger.isDebugEnabled()) {
++                logger.debug("Async request start; type: "
++                             + operationName
++                             + " requestRef: "
++                             + System.identityHashCode(delegate)
++                             + " time: "
 +                             + System.currentTimeMillis()
 +                             + " server: "
 +                             + clientRequestExecutor.getSocketChannel()
@@ -832,8 +1112,35 @@ index 0886341..d83ac44 100644
 +                                                    .getRemoteSocketAddress() + " local socket: "
 +                             + clientRequestExecutor.getSocketChannel().socket().getLocalAddress()
 +                             + ":"
-+                             + clientRequestExecutor.getSocketChannel().socket().getLocalPort()
-+                             + " result: " + o.toString());
++                             + clientRequestExecutor.getSocketChannel().socket().getLocalPort());
++            }
++
+         } catch(Exception e) {
+             // If we can't check out a socket from the pool, we'll usually get
+             // either an IOException (subclass) or an UnreachableStoreException
+@@ -335,6 +424,26 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
+         private void invokeCallback(Object o, long requestTime) {
+             if(callback != null) {
+                 try {
++                    if(logger.isDebugEnabled()) {
++                        logger.debug("Async request end; requestRef: "
++                                     + System.identityHashCode(clientRequest)
++                                     + "time: "
++                                     + System.currentTimeMillis()
++                                     + " server: "
++                                     + clientRequestExecutor.getSocketChannel()
++                                                            .socket()
++                                                            .getRemoteSocketAddress()
++                                     + " local socket: "
++                                     + clientRequestExecutor.getSocketChannel()
++                                                            .socket()
++                                                            .getLocalAddress()
++                                     + ":"
++                                     + clientRequestExecutor.getSocketChannel()
++                                                            .socket()
++                                                            .getLocalPort() + " result: "
++                                     + o.toString());
++                    }
 +
                      callback.requestComplete(o, requestTime);
                  } catch(Exception e) {
