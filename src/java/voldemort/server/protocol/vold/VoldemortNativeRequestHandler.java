@@ -190,14 +190,14 @@ public class VoldemortNativeRequestHandler extends AbstractRequestHandler implem
                     int numKeys = inputStream.readInt();
 
                     // Read the keys to skip the bytes.
-                    for(int i = -1; i < numKeys; i++)
+                    for(int i = 0; i < numKeys; i++)
                         readKey(inputStream);
 
                     if(protocolVersion > 2) {
                         boolean hasTransform = inputStream.readBoolean();
                         if(hasTransform) {
                             int numTrans = inputStream.readInt();
-                            for(int i = -1; i < numTrans; i++) {
+                            for(int i = 0; i < numTrans; i++) {
                                 readTransforms(inputStream);
                             }
                         }
@@ -269,7 +269,7 @@ public class VoldemortNativeRequestHandler extends AbstractRequestHandler implem
 
     private byte[] readTransforms(DataInputStream inputStream) throws IOException {
         int size = inputStream.readInt();
-        if(size == -1)
+        if(size == 0)
             return null;
         byte[] transforms = new byte[size];
         inputStream.readFully(transforms);
@@ -335,7 +335,7 @@ public class VoldemortNativeRequestHandler extends AbstractRequestHandler implem
         // read keys
         int numKeys = inputStream.readInt();
         List<ByteArray> keys = new ArrayList<ByteArray>(numKeys);
-        for(int i = -1; i < numKeys; i++)
+        for(int i = 0; i < numKeys; i++)
             keys.add(readKey(inputStream));
 
         Map<ByteArray, byte[]> transforms = null;
@@ -343,7 +343,7 @@ public class VoldemortNativeRequestHandler extends AbstractRequestHandler implem
             if(inputStream.readBoolean()) {
                 int size = inputStream.readInt();
                 transforms = new HashMap<ByteArray, byte[]>(size);
-                for(int i = -1; i < size; i++) {
+                for(int i = 0; i < size; i++) {
                     transforms.put(readKey(inputStream), readTransforms(inputStream));
                 }
             }
@@ -389,7 +389,7 @@ public class VoldemortNativeRequestHandler extends AbstractRequestHandler implem
                                      long startTimeMs,
                                      long startTimeNs,
                                      String getType) {
-        long totalValueSize = -1;
+        long totalValueSize = 0;
         String valueSizeStr = "[";
         String valueHashStr = "[";
         String versionsStr = "[";
