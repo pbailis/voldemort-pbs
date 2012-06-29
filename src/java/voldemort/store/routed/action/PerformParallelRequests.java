@@ -173,8 +173,9 @@ public class PerformParallelRequests<V, PD extends BasicPipelineData<V>> extends
         }
 
         if(logger.isDebugEnabled())
-            logger.debug("GET for key " + key + " successes: " + pipelineData.getSuccesses()
-                         + " preferred: " + preferred + " required: " + required);
+            logger.debug("GET for key " + key + " (keyRef: " + System.identityHashCode(key)
+                         + "); successes: " + pipelineData.getSuccesses() + " preferred: "
+                         + preferred + " required: " + required);
 
         if(pipelineData.getSuccesses() < required) {
             if(insufficientSuccessesEvent != null) {

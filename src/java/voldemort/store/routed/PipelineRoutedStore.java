@@ -266,8 +266,7 @@ public class PipelineRoutedStore extends RoutedStore {
         builder.append("{");
         for(Response<ByteArray, List<Versioned<byte[]>>> r: results) {
             builder.append("(nodeId=" + r.getNode().getId() + ", key=" + r.getKey()
-                           + ", retrieved= " + r.getValue() + ")");
-            builder.append(", ");
+                           + ", retrieved= " + r.getValue() + "), ");
         }
         builder.append("}");
 
@@ -485,8 +484,7 @@ public class PipelineRoutedStore extends RoutedStore {
         builder.append("{");
         for(Response<ByteArray, List<Version>> r: results) {
             builder.append("(nodeId=" + r.getNode().getId() + ", key=" + r.getKey()
-                           + ", retrieved= " + r.getValue() + ")");
-            builder.append(", ");
+                           + ", retrieved= " + r.getValue() + "), ");
         }
         builder.append("}");
 

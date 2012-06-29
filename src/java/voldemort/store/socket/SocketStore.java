@@ -272,12 +272,12 @@ public class SocketStore implements Store<ByteArray, byte[], byte[]>, Nonblockin
     private <T> T request(ClientRequest<T> delegate, String operationName) {
         ClientRequestExecutor clientRequestExecutor = pool.checkout(destination);
 
-        long startMasterMs = -1;
-        long startMasterNs = -1;
+        long startTimeMs = -1;
+        long startTimeNs = -1;
 
         if(logger.isDebugEnabled()) {
-            startMasterMs = System.currentTimeMillis();
-            startMasterNs = System.nanoTime();
+            startTimeMs = System.currentTimeMillis();
+            startTimeNs = System.nanoTime();
         }
 
         String debugMsgStr = "";
