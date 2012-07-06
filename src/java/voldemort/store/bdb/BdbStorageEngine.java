@@ -278,7 +278,7 @@ public class BdbStorageEngine implements StorageEngine<ByteArray, byte[], byte[]
             cursor = getBdbDatabase().openCursor(null, null);
             for(ByteArray key: keys) {
 
-                if(logger.isDebugEnabled())
+                if(logger.isTraceEnabled())
                     keyStr += key + " ";
 
                 List<Versioned<byte[]>> values = get(cursor, key, readLockMode, versionedSerializer);
