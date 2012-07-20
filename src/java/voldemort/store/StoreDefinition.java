@@ -60,6 +60,7 @@ public class StoreDefinition implements Serializable {
     private final HintedHandoffStrategyType hintedHandoffStrategyType;
     private final Integer hintPrefListSize;
     private final List<String> owners;
+    private final long memoryFootprintMB;
 
     public StoreDefinition(String name,
                            String type,
@@ -84,21 +85,23 @@ public class StoreDefinition implements Serializable {
                            String factory,
                            HintedHandoffStrategyType hintedHandoffStrategyType,
                            Integer hintPrefListSize,
-                           List<String> owners) {
+                           List<String> owners,
+                           long memoryFootprintMB) {
         this.name = Utils.notNull(name);
-        this.type = Utils.notNull(type);
+        this.type = type;
         this.description = description;
         this.replicationFactor = replicationFactor;
         this.preferredReads = preferredReads;
         this.requiredReads = requiredReads;
         this.preferredWrites = preferredWrites;
         this.requiredWrites = requiredWrites;
-        this.routingPolicy = Utils.notNull(routingPolicy);
-        this.keySerializer = Utils.notNull(keySerializer);
-        this.valueSerializer = Utils.notNull(valueSerializer);
+        this.routingPolicy = routingPolicy;
+        this.keySerializer = keySerializer;
+        this.valueSerializer = valueSerializer;
         this.transformsSerializer = transformsSerializer;
         this.retentionPeriodDays = retentionDays;
         this.retentionScanThrottleRate = retentionThrottleRate;
+        this.memoryFootprintMB = memoryFootprintMB;
         this.routingStrategyType = routingStrategyType;
         this.viewOf = viewOfStore;
         this.valueTransformation = valTrans;
@@ -109,10 +112,16 @@ public class StoreDefinition implements Serializable {
         this.hintedHandoffStrategyType = hintedHandoffStrategyType;
         this.hintPrefListSize = hintPrefListSize;
         this.owners = owners;
-        checkParameterLegality();
     }
 
-    private void checkParameterLegality() {
+    protected void checkParameterLegality() {
+
+        // null checks
+        Utils.notNull(this.type);
+        Utils.notNull(routingPolicy);
+        Utils.notNull(keySerializer);
+        Utils.notNull(valueSerializer);
+
         if(requiredReads < 1)
             throw new IllegalArgumentException("Cannot have a requiredReads number less than 1.");
         else if(requiredReads > replicationFactor)
@@ -329,6 +338,14 @@ public class StoreDefinition implements Serializable {
         return this.owners;
     }
 
+    public long getMemoryFootprintMB() {
+        return this.memoryFootprintMB;
+    }
+
+    public boolean hasMemoryFootprint() {
+        return memoryFootprintMB != 0;
+    }
+
     @Override
     public boolean equals(Object o) {
         if(this == o)
@@ -371,7 +388,8 @@ public class StoreDefinition implements Serializable {
                                 def.getSerializerFactory() != null ? def.getSerializerFactory()
                                                                   : null)
                && Objects.equal(getHintedHandoffStrategyType(), def.getHintedHandoffStrategyType())
-               && Objects.equal(getHintPrefListSize(), def.getHintPrefListSize());
+               && Objects.equal(getHintPrefListSize(), def.getHintPrefListSize())
+               && Objects.equal(getMemoryFootprintMB(), def.getMemoryFootprintMB());
     }
 
     @Override
@@ -402,7 +420,8 @@ public class StoreDefinition implements Serializable {
                                 hasHintedHandoffStrategyType() ? getHintedHandoffStrategyType()
                                                               : null,
                                 hasHintPreflistSize() ? getHintPrefListSize() : null,
-                                getOwners());
+                                getOwners(),
+                                getMemoryFootprintMB());
     }
 
     @Override
@@ -422,6 +441,6 @@ public class StoreDefinition implements Serializable {
                + getZoneCountWrites() + ", serializer factory = " + getSerializerFactory() + ")"
                + ", hinted-handoff-strategy = " + getHintedHandoffStrategyType()
                + ", hint-preflist-size = " + getHintPrefListSize() + ", owners = " + getOwners()
-               + ")";
+               + ", memory-footprint(MB)" + getMemoryFootprintMB() + ")";
     }
 }
